@@ -1,0 +1,15 @@
+[package]
+name = "airside-logten-importer"
+version = "1.2.8"
+description = "Airside to LogTen Importer with admin-managed AirLabs scheduled-time lookup"
+
+# This command starts PHP's built-in web server and routes requests through index.php.
+# If Wasmer's dashboard PHP template generates a different command, keep the files
+# and use the dashboard's PHP Web App / PHP Starter settings.
+[[command]]
+name = "run"
+module = "php/php:php"
+runner = "wasi"
+
+[command.annotations.wasi]
+main-args = ["-S", "0.0.0.0:8080", "index.php"]

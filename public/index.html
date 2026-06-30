@@ -1,0 +1,1868 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airside ⟶ LogTen Importer v1.2.9</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: rgba(255, 255, 255, 0.88);
+      --panel-solid: #ffffff;
+      --text: #111827;
+      --muted: #6b7280;
+      --subtle: #eef2f7;
+      --line: #e5e7eb;
+      --blue: #2563eb;
+      --blue-2: #1d4ed8;
+      --green: #15803d;
+      --amber: #b45309;
+      --red: #b91c1c;
+      --purple: #7c3aed;
+      --shadow: 0 20px 60px rgba(15, 23, 42, 0.10);
+      --radius: 22px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 32rem),
+        radial-gradient(circle at 90% 5%, rgba(124, 58, 237, 0.14), transparent 28rem),
+        linear-gradient(180deg, #f8fbff, var(--bg));
+    }
+
+    .app-shell {
+      width: min(1220px, calc(100% - 32px));
+      margin: 28px auto 40px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .logo {
+      width: 46px;
+      height: 46px;
+      border-radius: 15px;
+      background: linear-gradient(135deg, #111827, #2563eb);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      box-shadow: 0 16px 30px rgba(37, 99, 235, 0.25);
+      flex: 0 0 auto;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(24px, 3vw, 38px);
+      line-height: 1.05;
+      letter-spacing: -0.045em;
+    }
+
+    .brand p {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .privacy-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border: 1px solid rgba(37, 99, 235, 0.16);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      color: #1e3a8a;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.78fr);
+      gap: 20px;
+      align-items: start;
+    }
+
+    @media (max-width: 980px) {
+      .topbar { align-items: flex-start; flex-direction: column; }
+      .layout { grid-template-columns: 1fr; }
+      .privacy-pill { white-space: normal; }
+    }
+
+    .panel {
+      background: var(--panel);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(229, 231, 235, 0.92);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .panel + .panel { margin-top: 18px; }
+
+    .panel-header {
+      padding: 20px 22px 0;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .panel-header h2 {
+      margin: 0;
+      font-size: 18px;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-header p {
+      margin: 7px 0 0;
+      color: var(--muted);
+      line-height: 1.45;
+      font-size: 13px;
+    }
+
+    .panel-body { padding: 18px 22px 22px; }
+
+    .step-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 30px;
+      height: 30px;
+      border-radius: 999px;
+      background: #eff6ff;
+      color: var(--blue);
+      font-weight: 900;
+      flex: 0 0 auto;
+    }
+
+    .dropzone {
+      position: relative;
+      border: 1.5px dashed #b7c6dc;
+      background: linear-gradient(180deg, rgba(248, 251, 255, 0.95), rgba(255, 255, 255, 0.88));
+      border-radius: 18px;
+      padding: 20px;
+      min-height: 132px;
+      transition: 160ms ease;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      cursor: pointer;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--blue);
+      background: #f0f7ff;
+      transform: translateY(-1px);
+    }
+
+    .drop-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 18px;
+      display: grid;
+      place-items: center;
+      background: #eef6ff;
+      color: var(--blue);
+      font-size: 24px;
+      flex: 0 0 auto;
+    }
+
+    .dropzone strong { display: block; margin-bottom: 5px; }
+    .dropzone span { color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .dropzone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+    .file-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 12px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 700;
+      max-width: 100%;
+    }
+
+    .file-chip span {
+      color: inherit;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 330px;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    @media (max-width: 700px) { .options-grid { grid-template-columns: 1fr; } }
+
+    .option {
+      display: grid;
+      grid-template-columns: 38px 1fr;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255,255,255,0.75);
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    .option:hover { border-color: #c7d2fe; transform: translateY(-1px); }
+    .option input { width: 22px; height: 22px; margin-top: 2px; accent-color: var(--blue); }
+    .option strong { display: block; font-size: 13px; margin-bottom: 4px; }
+    .option small { display: block; color: var(--muted); line-height: 1.4; }
+
+    .status {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 650;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border: 1px solid #bfdbfe;
+    }
+    .status.success { background: #ecfdf5; color: var(--green); border-color: #bbf7d0; }
+    .status.warning { background: #fffbeb; color: var(--amber); border-color: #fde68a; }
+    .status.error { background: #fef2f2; color: var(--red); border-color: #fecaca; }
+    .status.info { background: #eff6ff; color: #1e3a8a; border-color: #bfdbfe; }
+
+    .progress-panel { padding: 18px 22px; }
+    .progress-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 12px; }
+    .progress-head strong { font-size: 13px; }
+    .progress-head span { color: var(--muted); font-size: 12px; }
+    .progress-track { height: 10px; border-radius: 999px; background: #e5e7eb; overflow: hidden; }
+    .progress-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--blue), var(--purple)); border-radius: inherit; transition: width 220ms ease; }
+    .stage-list { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+    .stage { padding: 8px 10px; border-radius: 12px; background: #f9fafb; color: var(--muted); font-size: 12px; font-weight: 800; text-align: center; }
+    .stage.done { background: #ecfdf5; color: var(--green); }
+    .stage.active { background: #eff6ff; color: var(--blue); }
+
+    @media (max-width: 700px) { .stage-list { grid-template-columns: 1fr 1fr; } }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .metric {
+      background: var(--panel-solid);
+      border: 1px solid var(--line);
+      border-radius: 17px;
+      padding: 15px;
+      min-height: 86px;
+    }
+
+    .metric .value {
+      font-size: 24px;
+      font-weight: 900;
+      letter-spacing: -0.04em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 100%;
+    }
+
+    .metric .label { color: var(--muted); font-size: 12px; margin-top: 5px; font-weight: 700; }
+
+    .actions {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-size: 14px;
+      font-weight: 850;
+      cursor: pointer;
+      transition: 140ms ease;
+    }
+
+    button.primary { color: white; background: linear-gradient(135deg, var(--blue), var(--blue-2)); box-shadow: 0 12px 24px rgba(37,99,235,0.22); }
+    button.secondary { color: #1f2937; background: #eef2ff; }
+    button.ghost { color: #4b5563; background: #f3f4f6; }
+    button:hover:not(:disabled) { transform: translateY(-1px); }
+    button:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+    .rules-list { display: grid; gap: 9px; }
+    .rule {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      font-size: 13px;
+      color: #374151;
+      line-height: 1.35;
+    }
+    .rule b { color: var(--green); }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      padding: 0 22px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .tab {
+      appearance: none;
+      border: none;
+      background: transparent;
+      border-radius: 12px 12px 0 0;
+      padding: 12px 12px;
+      color: var(--muted);
+      font-weight: 850;
+      box-shadow: none;
+    }
+    .tab.active { color: var(--blue); background: #eff6ff; }
+
+    .table-wrap { overflow: auto; max-height: 430px; border-radius: 16px; border: 1px solid var(--line); background: white; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid #edf2f7; text-align: left; white-space: nowrap; }
+    th { position: sticky; top: 0; z-index: 1; background: #f8fafc; color: #4b5563; font-size: 11px; text-transform: uppercase; letter-spacing: 0.055em; }
+    tbody tr:hover { background: #f8fafc; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      text-transform: capitalize;
+    }
+    .badge.ok { background: #dcfce7; color: var(--green); }
+    .badge.missing { background: #fee2e2; color: var(--red); }
+    .badge.skipped { background: #e5e7eb; color: #374151; }
+
+
+    .manual-name-input {
+      width: min(280px, 100%);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font: inherit;
+      font-size: 13px;
+      background: white;
+      outline: none;
+    }
+    .manual-name-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    .inline-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .inline-actions button {
+      padding: 9px 11px;
+      font-size: 12px;
+      border-radius: 11px;
+    }
+
+    .fallback-editor {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.78);
+      display: none;
+    }
+    .fallback-editor.visible { display: block; }
+    .fallback-editor h3 {
+      margin: 0 0 5px;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+    .fallback-editor p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .fallback-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+    .manual-sic-input {
+      flex: 1 1 260px;
+      min-width: 220px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font: inherit;
+      font-size: 13px;
+      background: white;
+      outline: none;
+    }
+    .manual-sic-input:focus {
+      border-color: var(--blue);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+
+    .empty {
+      padding: 26px;
+      color: var(--muted);
+      text-align: center;
+      font-size: 13px;
+    }
+
+
+    .mapping-card {
+      border: 1px solid #dbeafe;
+      background: linear-gradient(180deg, #eff6ff, rgba(255,255,255,0.88));
+      border-radius: 17px;
+      padding: 0;
+      margin-top: 16px;
+      overflow: hidden;
+    }
+    .mapping-card summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 15px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      user-select: none;
+    }
+    .mapping-card summary::-webkit-details-marker { display: none; }
+    .mapping-card summary h3 {
+      margin: 0;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+    }
+    .mapping-card summary span {
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .mapping-card[open] summary { border-bottom: 1px solid rgba(191,219,254,0.65); }
+    .mapping-card p {
+      margin: 0 0 12px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .mapping-card-body { padding: 14px 15px 15px; }
+    .mapping-list { display: grid; gap: 6px; }
+    .mapping-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr);
+      align-items: center;
+      gap: 8px;
+      padding: 7px 9px;
+      border-radius: 11px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(191,219,254,0.65);
+      font-size: 12px;
+    }
+    .mapping-row .source { color: #1f2937; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mapping-row .arrow { color: var(--blue); font-weight: 900; text-align: center; }
+    .mapping-row .target { color: #1e3a8a; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .mapping-row .target.skip { color: var(--muted); }
+    .info-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 999px;
+      padding: 0;
+      background: #eef2ff;
+      color: var(--blue);
+      border: 1px solid #c7d2fe;
+      box-shadow: none;
+      font-weight: 950;
+      flex: 0 0 auto;
+    }
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      backdrop-filter: blur(6px);
+      z-index: 50;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(820px, 100%);
+      max-height: min(760px, calc(100vh - 36px));
+      overflow: auto;
+      background: white;
+      border-radius: 24px;
+      box-shadow: 0 28px 80px rgba(15, 23, 42, 0.35);
+      border: 1px solid rgba(229, 231, 235, 0.95);
+    }
+    .modal-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 20px 22px 12px;
+      border-bottom: 1px solid var(--line);
+    }
+    .modal-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.025em; }
+    .modal-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .modal-body { padding: 18px 22px 22px; }
+    .modal-close { background: #f3f4f6; color: #374151; box-shadow: none; padding: 9px 12px; }
+    .compact-table { overflow: auto; border: 1px solid var(--line); border-radius: 16px; }
+    .compact-table table { font-size: 13px; }
+    .checklist {
+      display: grid;
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .check-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 9px;
+      padding: 9px 10px;
+      border-radius: 12px;
+      background: #f9fafb;
+      font-size: 12px;
+      color: #374151;
+      line-height: 1.35;
+    }
+    .check-item b { color: var(--green); }
+
+    .help-sections { display: grid; gap: 14px; }
+    .help-section {
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #f9fafb;
+    }
+    .help-section h3 {
+      margin: 0 0 9px;
+      font-size: 15px;
+      letter-spacing: -0.015em;
+    }
+    .help-section p, .help-section li {
+      color: #374151;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+    .help-section p { margin: 0; }
+    .help-section ol, .help-section ul { margin: 8px 0 0 20px; padding: 0; }
+    .help-callout {
+      margin-top: 12px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #eff6ff;
+      color: #1e3a8a;
+      border: 1px solid #bfdbfe;
+      font-size: 13px;
+      line-height: 1.45;
+      font-weight: 650;
+    }
+
+
+    .ready-card {
+      border: 1px solid #bbf7d0;
+      background: linear-gradient(180deg, #ecfdf5, rgba(255,255,255,0.92));
+      border-radius: 17px;
+      padding: 15px;
+      margin-top: 16px;
+    }
+    .ready-card.warning {
+      border-color: #fde68a;
+      background: linear-gradient(180deg, #fffbeb, rgba(255,255,255,0.92));
+    }
+    .ready-card.error {
+      border-color: #fecaca;
+      background: linear-gradient(180deg, #fef2f2, rgba(255,255,255,0.92));
+    }
+    .ready-card h3 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+    }
+    .ready-list { display: grid; gap: 8px; }
+    .ready-item {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 750;
+      line-height: 1.35;
+    }
+    .ready-icon { width: 18px; flex: 0 0 18px; text-align: center; }
+    .app-identity {
+      border-top: 1px solid var(--line);
+      margin-top: 20px;
+      padding-top: 16px;
+      color: var(--muted);
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    .app-identity strong {
+      display: block;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 800;
+      margin-bottom: 2px;
+    }
+    .app-identity em { font-style: normal; }
+
+    .site-footer {
+      max-width: 100%;
+      margin-top: 28px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(229, 231, 235, 0.92);
+      text-align: left;
+    }
+
+
+
+    .schedule-box {
+      margin-top: 14px;
+      padding: 14px;
+      border: 1px solid #dbeafe;
+      border-radius: 16px;
+      background: linear-gradient(180deg, #eff6ff, rgba(255,255,255,0.82));
+      display: none;
+    }
+    .schedule-box.visible { display: block; }
+    .schedule-box h3 {
+      margin: 0 0 5px;
+      font-size: 13px;
+      letter-spacing: -0.01em;
+    }
+    .schedule-box p {
+      margin: 0 0 10px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .schedule-actions {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+    .schedule-progress {
+      height: 10px;
+      background: #dbeafe;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 10px;
+    }
+    .schedule-progress span {
+      display: block;
+      width: 0%;
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, var(--blue), var(--purple));
+      transition: width 220ms ease;
+    }
+    .schedule-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+      color: #1e3a8a;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .schedule-meta span {
+      padding: 6px 8px;
+      border-radius: 999px;
+      background: rgba(255,255,255,0.72);
+      border: 1px solid rgba(191,219,254,0.75);
+    }
+    .badge.warning { background: #fef3c7; color: var(--amber); }
+    .hidden { display: none !important; }
+
+    .fineprint { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">AL</div>
+        <div>
+          <h1>Airside ⟶ LogTen Importer</h1>
+          <p>Convert Airside roster exports into a clean LogTen-ready CSV with optional People matching.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button type="button" id="mappingInfoBtnTop" class="info-button" title="Show LogTen import mapping">?</button><div class="privacy-pill">Private by design: all files stay in this browser tab</div></div>
+    </header>
+
+    <section class="layout">
+      <div>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Upload files</h2>
+              <p>Drag files onto the cards or click to browse. The People export is only needed for PIC and SIC name rules.</p>
+            </div>
+            <button type="button" id="uploadHelpBtn" class="info-button" title="How to export files and use this importer">?</button>
+          </div>
+          <div class="panel-body">
+            <div class="dropzone" id="flightDrop">
+              <div class="drop-icon">CSV</div>
+              <div>
+                <strong>Flight CSV</strong>
+                <span>Required. Expected Airside Flight format: SK5896-20240527-CPH-MMX.</span>
+                <div class="file-chip"><span id="flightFilePill">No flight CSV loaded</span></div>
+              </div>
+              <input type="file" id="csvFile" accept=".csv,text/csv" />
+            </div>
+            <div style="height:12px"></div>
+            <div class="dropzone" id="peopleDrop">
+              <div class="drop-icon">ID</div>
+              <div>
+                <strong>LogTen People export</strong>
+                <span>Optional. Used to match PIC IDs to Full Name and find This is Me for SIC.</span>
+                <div class="file-chip"><span id="peopleFilePill">No People export loaded</span></div>
+              </div>
+              <input type="file" id="peopleFile" accept=".txt,.csv,text/plain,text/csv" />
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Optional rules</h2>
+              <p>Every change can be switched off. The output is regenerated instantly when you change an option.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="options-grid">
+              <label class="option"><input type="checkbox" id="formatAircraftReg" checked><span><strong>Format aircraft registration</strong><small>Converts SERSX to SE-RSX.</small></span></label>
+              <label class="option"><input type="checkbox" id="replaceAircraftType" checked><span><strong>Replace aircraft type</strong><small>Converts E95 to E190.</small></span></label>
+              <label class="option"><input type="checkbox" id="replacePicWithName" checked><span><strong>Replace PIC ID with name</strong><small>Matches PIC values to People export ID.</small></span></label>
+              <label class="option"><input type="checkbox" id="setSicToThisIsMe" checked><span><strong>Set SIC to This is Me</strong><small>Uses the People row where This is Me is 1.</small></span></label>
+              <label class="option"><input type="checkbox" id="keepPicId" checked><span><strong>Keep PIC ID backup</strong><small>Adds a PIC ID column to preserve the number.</small></span></label>
+              <label class="option"><input type="checkbox" id="useManualPicNames" checked><span><strong>Use manual PIC fixes</strong><small>Lets you type names for missing PIC IDs on the preview tab.</small></span></label>
+              <label class="option"><input type="checkbox" id="blockMissingPic"><span><strong>Block missing PIC IDs</strong><small>Stops download until unknown IDs are fixed.</small></span></label>
+              <label class="option hidden" id="scheduleOptionLabel"><input type="checkbox" id="enableScheduleLookup"><span><strong>Add scheduled times</strong><small>Available only for approved Employee IDs and SAS SK flight numbers.</small></span></label>
+            </div>
+            <div id="scheduleLookupBox" class="schedule-box">
+              <h3>AirLabs scheduled-time lookup</h3>
+              <p>Optional. Only shown for approved Employee IDs. Calls your Wasmer backend, keeps the AirLabs API key private in admin settings, checks cache first, and only sends SAS SK flights. Flight numbers like SK0602 are sent as SK602.</p>
+              <div class="schedule-actions">
+                <button type="button" class="secondary" id="scanSchedulesBtn" disabled>Scan scheduled times</button>
+                <button type="button" class="ghost" id="clearSchedulesBtn" disabled>Clear times</button>
+                <button type="button" class="ghost" id="downloadScheduleErrorsBtn" disabled>Download error report</button>
+              </div>
+              <div class="schedule-progress"><span id="scheduleProgressFill"></span></div>
+              <div class="schedule-meta">
+                <span id="scheduleProgressText">No schedule scan yet</span>
+                <span id="scheduleUsageText">API units this run: 0</span>
+                <span id="scheduleMonthText">Monthly usage: unknown</span>
+              </div>
+            </div>
+            <div id="manualSicEditor" class="fallback-editor">
+              <h3>Manual SIC / This is Me fallback</h3>
+              <p>This appears only when no LogTen People row marked This is Me = 1 was detected. The typed name is used for SIC when "Set SIC to This is Me" is enabled.</p>
+              <div class="fallback-row">
+                <input type="text" id="manualSicName" class="manual-sic-input" placeholder="Type your LogTen name, e.g. Alex Mercer" autocomplete="off" />
+                <button type="button" class="secondary" id="applyManualSicBtn">Apply SIC name</button>
+                <button type="button" class="ghost" id="clearManualSicBtn">Clear</button>
+              </div>
+            </div>
+            <div id="status" class="status info">Upload a flight CSV to begin.</div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="progress-panel">
+            <div class="progress-head"><strong>Conversion progress</strong><span id="progressText">Waiting for files</span></div>
+            <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+            <div class="stage-list">
+              <div id="stageFlight" class="stage">Flight CSV</div>
+              <div id="stagePeople" class="stage">People optional</div>
+              <div id="stageRules" class="stage">Rules</div>
+              <div id="stageReady" class="stage">Ready</div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside>
+        <section class="panel">
+          <div class="panel-header"><div><h2>Summary</h2><p>Live checks before you download.</p></div></div>
+          <div class="panel-body">
+            <div class="metrics">
+              <div class="metric"><div id="metricFlights" class="value">0</div><div class="label">Flights processed</div></div>
+              <div class="metric"><div id="metricPeople" class="value">0</div><div class="label">People IDs loaded</div></div>
+              <div class="metric"><div id="metricThisIsMe" class="value">-</div><div class="label">This is Me / SIC</div></div>
+              <div class="metric"><div id="metricMatched" class="value">0</div><div class="label">PIC IDs matched</div></div>
+              <div class="metric"><div id="metricMissing" class="value">0</div><div class="label">PIC IDs missing</div></div>
+              <div class="metric"><div id="metricManual" class="value">0</div><div class="label">Manual PIC fixes</div></div>
+              <div class="metric"><div id="metricSchedules" class="value">0</div><div class="label">Scheduled times</div></div>
+            </div>
+            <div id="readyCard" class="ready-card warning">
+              <h3>Ready to import into LogTen?</h3>
+              <div id="readyList" class="ready-list">
+                <div class="ready-item"><span class="ready-icon">○</span><span>Upload a Flight CSV to begin.</span></div>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="downloadBtn" class="primary" disabled>Download LogTen CSV</button>
+              <button id="downloadMissingBtn" class="secondary" disabled>Download unknown PIC IDs</button>
+              <button id="resetBtn" class="ghost">Reset</button>
+            </div>
+            <details class="mapping-card" id="mappingCard">
+              <summary>
+                <h3>LogTen import mapping</h3>
+                <span>Open</span>
+              </summary>
+              <div class="mapping-card-body">
+                <p>Use these LogTen fields and categories when importing the downloaded CSV.</p>
+                <div class="mapping-list" id="mappingMiniList"></div>
+                <button type="button" id="mappingInfoBtn" class="secondary" style="width:100%; margin-top:10px; padding:10px 12px;">Full mapping guide</button>
+              </div>
+            </details>
+            <p class="fineprint">No backend, no database, no embedded names. The People export is read locally each time.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header"><div><h2>Active LogTen rules</h2><p>Only enabled rules appear here.</p></div></div>
+          <div class="panel-body"><div id="rulesList" class="rules-list"><div class="empty">Upload a flight CSV to see active rules.</div></div></div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="panel" style="margin-top:20px;">
+      <div class="panel-header">
+        <div>
+          <h2>Live preview</h2>
+          <p>Review the first 10 converted rows and manually fix missing PIC names before downloading.</p>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="tabFlights" type="button">First 10 converted flights</button>
+        <button class="tab" id="tabPic" type="button">PIC matching & manual fixes</button>
+        <button class="tab" id="tabSchedules" type="button">Schedule lookup</button>
+      </div>
+      <div class="panel-body">
+        <div id="flightPreviewWrap" class="table-wrap"><div class="empty">No converted rows yet.</div></div>
+        <div id="picPreviewWrap" class="table-wrap" style="display:none;"><div class="empty">No PIC values yet.</div></div>
+        <div id="schedulePreviewWrap" class="table-wrap" style="display:none;"><div class="empty">No schedule scan yet.</div></div>
+      </div>
+    </section>
+
+    <footer class="app-identity site-footer">
+      <strong>Airside ⟶ LogTen Importer</strong>
+      <div>v1.2.9</div>
+      <em>Made for SAS pilots ✈️</em>
+      <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
+    </footer>
+  </main>
+
+
+  <div id="mappingModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mappingModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="mappingModalTitle">LogTen import field mapping</h2>
+          <p>After downloading the CSV, set LogTen's import fields and import categories like this. Columns marked Do Not Import are only helper/reference columns.</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button type="button" id="mappingModalClose" class="modal-close">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="compact-table" id="mappingFullTable"></div>
+        <div class="checklist">
+          <div class="check-item"><b>✓</b><span><strong>PIC</strong> should map to <strong>PIC/P1 Crew</strong>, not the backup PIC ID column.</span></div>
+          <div class="check-item"><b>✓</b><span><strong>SIC</strong> should map to <strong>SIC/P2 Crew</strong>.</span></div>
+          <div class="check-item"><b>✓</b><span><strong>Arrival Date</strong>, <strong>PIC ID</strong>, <strong>Employee id</strong>, and <strong>Crew id</strong> should be set to <strong>Do Not Import</strong> for both field and category.</span></div>
+          <div class="check-item"><b>✓</b><span>Check the first few preview rows before importing into LogTen.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="helpModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="helpModalTitle">How Airside ⟶ LogTen Importer works</h2>
+          <p>Use this guide to export the correct files, convert them locally, and import the finished CSV into LogTen.</p>
+        </div>
+        <button type="button" id="helpModalClose" class="modal-close">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-sections">
+          <section class="help-section">
+            <h3>1. Export your Airside roster / flight log</h3>
+            <ol>
+              <li>Open <strong>Airside</strong>.</li>
+              <li>Go to <strong>Statistics</strong>.</li>
+              <li>Press <strong>Export Flight Log</strong>.</li>
+              <li>Select the date range you want to export.</li>
+              <li>Enter the email address where Airside should send the file.</li>
+              <li>Press <strong>Export</strong>.</li>
+              <li>Download the CSV attachment from the email and upload it here as <strong>Flight CSV</strong>.</li>
+            </ol>
+          </section>
+
+          <section class="help-section">
+            <h3>2. Export your LogTen People Export</h3>
+            <p>This step is optional, but recommended. It lets the importer match PIC employee IDs to LogTen names and detect your own name for SIC using <strong>This is Me</strong>.</p>
+            <ol>
+              <li>Open <strong>LogTen</strong>.</li>
+              <li>Go to <strong>People</strong>.</li>
+              <li>Export the <strong>People Export</strong> file.</li>
+              <li>Upload that TXT or CSV file here as <strong>LogTen People export</strong>.</li>
+            </ol>
+          </section>
+
+          <section class="help-section">
+            <h3>3. What the importer changes</h3>
+            <ul>
+              <li>Splits Airside flight values such as <strong>SK5896-20240527-CPH-MMX</strong> into flight number, departure, and destination.</li>
+              <li>Optionally formats aircraft registrations, for example <strong>SERSX</strong> to <strong>SE-RSX</strong>.</li>
+              <li>Optionally changes <strong>E95</strong> to <strong>E190</strong>.</li>
+              <li>Optionally replaces PIC employee IDs with matching names from the LogTen People Export.</li>
+              <li>Optionally fills SIC from the LogTen person marked <strong>This is Me</strong>, or from the manual SIC fallback field.</li>
+              <li>Shows missing PIC IDs so you can type names manually before downloading.</li>
+              <li>Optionally scans AirLabs historical data for approved Employee IDs and SAS SK flights through your Wasmer backend and adds <strong>Scheduled Dep</strong> and <strong>Scheduled Arr</strong> columns.</li>
+            </ul>
+          </section>
+
+          <section class="help-section">
+            <h3>4. Import into LogTen</h3>
+            <p>After downloading the finished CSV, use the <strong>LogTen import mapping</strong> panel on this page. It shows exactly which CSV columns to map to which LogTen fields and categories.</p>
+          </section>
+
+          <section class="help-section">
+            <h3>5. Privacy</h3>
+            <p>Normal conversion happens inside this browser tab. If scheduled-time lookup is enabled and your Employee ID is approved, only the Employee ID, flight number, date, and route are sent to your own Wasmer backend so it can check cache and call AirLabs without exposing the API key. The API key and allowed Employee IDs are managed on the private admin page.</p>
+          </section>
+        </div>
+        <div class="help-callout"><strong>Tip:</strong> Check the live preview and the Ready to import card before opening LogTen's importer.</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let flightRows = [];
+    let peopleRows = [];
+    let peopleById = new Map();
+    let manualPeopleById = new Map();
+    let duplicateIds = new Map();
+    let thisIsMeName = '';
+    let thisIsMeId = '';
+    let manualThisIsMeName = '';
+    let processedData = null;
+    let previewRows = [];
+    let scheduleResultsByRow = new Map();
+    let schedulePreviewRows = [];
+    let scheduleAccessAllowed = false;
+    let scheduleAccessReason = 'not_checked';
+    let activeTab = 'flights';
+
+    const logtenImportMapping = [
+      ['Employee id', 'Do Not Import', 'Do Not Import'],
+      ['Crew id', 'Do Not Import', 'Do Not Import'],
+      ['Flight', 'Flight #', 'Flight'],
+      ['Departure-Place', 'From', 'Flight'],
+      ['Destination-Place', 'To', 'Flight'],
+      ['Departure Date', 'Date', 'Flight'],
+      ['Block off', 'Out', 'Flight'],
+      ['Arrival Date', 'Do Not Import', 'Do Not Import'],
+      ['Block on', 'In', 'Flight'],
+      ['Scheduled Dep', 'Scheduled Dep', 'Time'],
+      ['Scheduled Arr', 'Scheduled Arr', 'Time'],
+      ['Scheduled Time Note', 'Do Not Import', 'Do Not Import'],
+      ['Aircraft Registration', 'Aircraft ID', 'Aircraft'],
+      ['Aircraft Type', 'Type', 'Aircraft'],
+      ['Duration', 'Total Time', 'Time'],
+      ['Landing', 'Pilot Flying', 'Duty'],
+      ['PIC ID', 'Do Not Import', 'Do Not Import'],
+      ['PIC', 'PIC/P1 Crew', 'Crew'],
+      ['SIC', 'SIC/P2 Crew', 'Crew']
+    ];
+
+    const el = id => document.getElementById(id);
+    const optionIds = ['formatAircraftReg', 'replaceAircraftType', 'replacePicWithName', 'setSicToThisIsMe', 'keepPicId', 'useManualPicNames', 'blockMissingPic', 'enableScheduleLookup'];
+
+    el('csvFile').addEventListener('change', handleFlightFile);
+    el('peopleFile').addEventListener('change', handlePeopleFile);
+    optionIds.forEach(id => el(id).addEventListener('change', recompute));
+    el('downloadBtn').addEventListener('click', downloadProcessedCsv);
+    el('downloadMissingBtn').addEventListener('click', downloadUnknownPicCsv);
+    el('applyManualSicBtn').addEventListener('click', applyManualSicName);
+    el('clearManualSicBtn').addEventListener('click', clearManualSicName);
+    el('manualSicName').addEventListener('keydown', event => {
+      if (event.key === 'Enter') applyManualSicName();
+    });
+    el('resetBtn').addEventListener('click', resetAll);
+    el('tabFlights').addEventListener('click', () => setTab('flights'));
+    el('tabPic').addEventListener('click', () => setTab('pic'));
+    el('tabSchedules').addEventListener('click', () => setTab('schedules'));
+    el('scanSchedulesBtn').addEventListener('click', scanSchedules);
+    el('clearSchedulesBtn').addEventListener('click', clearScheduleResults);
+    el('downloadScheduleErrorsBtn').addEventListener('click', downloadScheduleErrorReport);
+    el('mappingInfoBtn').addEventListener('click', openMappingModal);
+    el('mappingInfoBtnTop').addEventListener('click', openMappingModal);
+    el('uploadHelpBtn').addEventListener('click', openHelpModal);
+    el('mappingModalClose').addEventListener('click', closeMappingModal);
+    el('helpModalClose').addEventListener('click', closeHelpModal);
+    el('mappingModal').addEventListener('click', event => { if (event.target === el('mappingModal')) closeMappingModal(); });
+    el('helpModal').addEventListener('click', event => { if (event.target === el('helpModal')) closeHelpModal(); });
+    el('mappingCard').addEventListener('toggle', () => {
+      const label = el('mappingCard').querySelector('summary span');
+      if (label) label.textContent = el('mappingCard').open ? 'Close' : 'Open';
+    });
+    document.addEventListener('keydown', event => { if (event.key === 'Escape') { closeMappingModal(); closeHelpModal(); } });
+    renderMappingGuide();
+
+    function renderMappingGuide() {
+      const miniRows = logtenImportMapping.filter(([, target]) => target !== 'Do Not Import');
+      el('mappingMiniList').innerHTML = miniRows.map(([source, target, category]) => `<div class="mapping-row"><span class="source">${escapeHtml(source)}</span><span class="arrow">→</span><span class="target ${target === 'Do Not Import' ? 'skip' : ''}">${escapeHtml(target)} <small style="color:var(--muted);font-weight:800;">(${escapeHtml(category)})</small></span></div>`).join('');
+      el('mappingFullTable').innerHTML = `<table><thead><tr><th>CSV column</th><th>LogTen field</th><th>Import category</th></tr></thead><tbody>${logtenImportMapping.map(([source, target, category]) => `<tr><td>${escapeHtml(source)}</td><td>${target === 'Do Not Import' ? '<span class="badge skipped">Do Not Import</span>' : escapeHtml(target)}</td><td>${category === 'Do Not Import' ? '<span class="badge skipped">Do Not Import</span>' : escapeHtml(category)}</td></tr>`).join('')}</tbody></table>`;
+    }
+
+    function openMappingModal() {
+      el('mappingModal').classList.add('open');
+      el('mappingModal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeMappingModal() {
+      el('mappingModal').classList.remove('open');
+      el('mappingModal').setAttribute('aria-hidden', 'true');
+    }
+
+
+    function openHelpModal() {
+      el('helpModal').classList.add('open');
+      el('helpModal').setAttribute('aria-hidden', 'false');
+    }
+
+    function closeHelpModal() {
+      el('helpModal').classList.remove('open');
+      el('helpModal').setAttribute('aria-hidden', 'true');
+    }
+
+    setupDropzone('flightDrop', 'csvFile');
+    setupDropzone('peopleDrop', 'peopleFile');
+
+    function setupDropzone(dropId, inputId) {
+      const drop = el(dropId);
+      const input = el(inputId);
+      ['dragenter', 'dragover'].forEach(eventName => {
+        drop.addEventListener(eventName, event => {
+          event.preventDefault();
+          drop.classList.add('dragover');
+        });
+      });
+      ['dragleave', 'drop'].forEach(eventName => {
+        drop.addEventListener(eventName, event => {
+          event.preventDefault();
+          drop.classList.remove('dragover');
+        });
+      });
+      drop.addEventListener('drop', event => {
+        const file = event.dataTransfer.files && event.dataTransfer.files[0];
+        if (!file) return;
+        const dataTransfer = new DataTransfer();
+        dataTransfer.items.add(file);
+        input.files = dataTransfer.files;
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+    }
+
+    function handleFlightFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      el('flightFilePill').textContent = file.name;
+      showStatus('Processing flight CSV...', 'info');
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: results => {
+          try {
+            flightRows = (results.data || []).filter(row => Object.keys(row).some(k => k && String(row[k] || '').trim() !== '')).map((row, index) => ({ ...row, __rowIndex: index }));
+            scheduleResultsByRow = new Map();
+            schedulePreviewRows = [];
+            scheduleAccessAllowed = false;
+            scheduleAccessReason = 'checking';
+            recompute();
+            refreshScheduleAccess();
+          } catch (error) {
+            showStatus('Error processing flight CSV: ' + error.message, 'error');
+          }
+        },
+        error: error => showStatus('Error parsing flight CSV: ' + error.message, 'error')
+      });
+    }
+
+    function handlePeopleFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      el('peopleFilePill').textContent = file.name;
+      showStatus('Reading People export...', 'info');
+
+      // LogTen's People Export is tab-separated and can contain malformed quoted line breaks.
+      // A simple line-based TSV parser is more reliable here than normal CSV quote parsing.
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          peopleRows = parsePeopleExportText(String(reader.result || ''));
+          buildPeopleLookup(peopleRows);
+          recompute();
+        } catch (error) {
+          showStatus('Error processing People export: ' + error.message, 'error');
+        }
+      };
+      reader.onerror = () => showStatus('Error reading People export.', 'error');
+      reader.readAsText(file, 'UTF-8');
+    }
+
+    function parsePeopleExportText(text) {
+      const normalized = text.replace(/^\uFEFF/, '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const lines = normalized.split('\n').filter(line => line.trim() !== '');
+      if (!lines.length) return [];
+
+      const headers = lines[0].split('\t').map(header => clean(header).replace(/^\uFEFF/, ''));
+      const rows = [];
+
+      for (const line of lines.slice(1)) {
+        const cells = line.split('\t');
+        const row = {};
+        headers.forEach((header, index) => {
+          row[header] = clean(cells[index] ?? '').replace(/^"|"$/g, '').trim();
+        });
+
+        // Keep only real person rows. This also skips continuation lines from names containing line breaks.
+        if (clean(row['Name']) || clean(row['Full Name']) || clean(row['ID'])) rows.push(row);
+      }
+      return rows;
+    }
+
+    function clean(value) { return String(value ?? '').replace(/\r?\n/g, ' ').trim(); }
+    function normalizeKey(key) { return clean(key).replace(/^\uFEFF/, '').replace(/\s+/g, ' ').toLowerCase(); }
+    function getField(row, fieldName) {
+      const wanted = normalizeKey(fieldName);
+      const key = Object.keys(row).find(k => normalizeKey(k) === wanted);
+      return key ? row[key] : '';
+    }
+    function hasField(row, fieldName) { return Object.keys(row).some(k => normalizeKey(k) === normalizeKey(fieldName)); }
+
+    function buildPeopleLookup(rows) {
+      peopleById = new Map();
+      manualPeopleById = new Map();
+      duplicateIds = new Map();
+      thisIsMeName = '';
+      thisIsMeId = '';
+      manualThisIsMeName = '';
+
+      for (const row of rows) {
+        const id = clean(getField(row, 'ID'));
+        const fullName = clean(getField(row, 'Full Name') || getField(row, 'Name'));
+        const isMe = clean(getField(row, 'This is Me'));
+
+        if (!thisIsMeName && fullName && isTruthyFlag(isMe)) {
+          thisIsMeName = fullName;
+          thisIsMeId = id;
+        }
+
+        if (!id || !fullName) continue;
+        if (peopleById.has(id)) {
+          if (!duplicateIds.has(id)) duplicateIds.set(id, [peopleById.get(id)]);
+          duplicateIds.get(id).push(fullName);
+          continue;
+        }
+        peopleById.set(id, fullName);
+      }
+    }
+
+    function isTruthyFlag(value) {
+      const v = clean(value).toLowerCase();
+      return v === '1' || v === 'true' || v === 'yes' || v === 'y' || v === 'x';
+    }
+
+
+    function getPicNameForId(id, options) {
+      const cleanedId = clean(id);
+      if (!cleanedId) return '';
+      if (peopleById.has(cleanedId)) return peopleById.get(cleanedId);
+      if (options.useManualPicNames && manualPeopleById.has(cleanedId)) return manualPeopleById.get(cleanedId);
+      return '';
+    }
+
+    function isManualPicId(id, options) {
+      const cleanedId = clean(id);
+      return options.useManualPicNames && manualPeopleById.has(cleanedId) && !peopleById.has(cleanedId);
+    }
+
+    function getSicName(options) {
+      if (!options.setSicToThisIsMe) return '';
+      return thisIsMeName || manualThisIsMeName || '';
+    }
+
+    function recompute() {
+      if (!flightRows.length) {
+        processedData = null;
+        previewRows = [];
+        updateMetrics();
+        renderReadyCard();
+        renderPreviews();
+        renderRules(getOptions());
+        updateManualSicEditor(getOptions());
+        updateScheduleLookupUI(getOptions());
+        updateProgress();
+        el('downloadBtn').disabled = true;
+        el('downloadMissingBtn').disabled = true;
+        showStatus('Upload a flight CSV to begin.', 'info');
+        return;
+      }
+
+      const options = getOptions();
+      processedData = processFlightData(flightRows, options);
+      previewRows = buildPicPreview(flightRows, options);
+      const missingCount = previewRows.filter(r => r.status === 'missing').length;
+      const matchedCount = previewRows.filter(r => r.status === 'matched' || r.status === 'manual').length;
+
+      const blocked = options.blockMissingPic && options.replacePicWithName && missingCount > 0;
+
+      updateMetrics();
+      renderReadyCard(options, missingCount, matchedCount, blocked);
+      renderPreviews();
+      renderRules(options);
+      updateManualSicEditor(options);
+      updateScheduleLookupUI(options);
+
+      el('downloadMissingBtn').disabled = missingCount === 0;
+      el('downloadBtn').disabled = blocked || !processedData.length;
+      updateProgress();
+
+      if (blocked) {
+        showStatus(`Download blocked: ${missingCount} unique PIC ID(s) were not found in the People export.`, 'error');
+      } else if (options.setSicToThisIsMe && !getSicName(options)) {
+        showStatus('Flight CSV processed. SIC auto-fill is enabled, but no People export row marked This is Me = 1 was found. Type a manual SIC name to use the fallback.', 'warning');
+      } else if (options.replacePicWithName && !peopleById.size) {
+        showStatus('Flight CSV processed. People matching is enabled, but no People export is loaded, so PIC values are unchanged.', 'warning');
+      } else if (options.replacePicWithName && missingCount > 0) {
+        showStatus(`Processed ${processedData.length} rows. ${matchedCount} unique PIC ID(s) matched, ${missingCount} missing.`, 'warning');
+      } else if (duplicateIds.size > 0) {
+        showStatus(`Processed ${processedData.length} rows. Warning: ${duplicateIds.size} duplicate ID(s) found in People export; the first match was used.`, 'warning');
+      } else {
+        showStatus(`Success. Processed ${processedData.length} rows and ready to download.`, 'success');
+      }
+    }
+
+    function getOptions() {
+      return {
+        formatAircraftReg: el('formatAircraftReg').checked,
+        replaceAircraftType: el('replaceAircraftType').checked,
+        replacePicWithName: el('replacePicWithName').checked,
+        setSicToThisIsMe: el('setSicToThisIsMe').checked,
+        keepPicId: el('keepPicId').checked,
+        useManualPicNames: el('useManualPicNames').checked,
+        blockMissingPic: el('blockMissingPic').checked,
+        enableScheduleLookup: el('enableScheduleLookup').checked
+      };
+    }
+
+    function processFlightData(data, options) {
+      return data.map(row => {
+        const newRow = {};
+        let sawSic = false;
+        for (let key in row) {
+          if (!key || !key.trim() || key === '__rowIndex') continue;
+          const value = row[key];
+
+          if (key === 'Flight' && value) {
+            const parts = String(value).split('-');
+            if (parts.length >= 4) {
+              newRow['Flight'] = parts[0];
+              newRow['Departure-Place'] = parts[2];
+              newRow['Destination-Place'] = parts[3];
+            } else {
+              newRow['Flight'] = value;
+              newRow['Departure-Place'] = '';
+              newRow['Destination-Place'] = '';
+            }
+          } else if (key === 'PIC') {
+            const picId = clean(value);
+            if (options.keepPicId) newRow['PIC ID'] = picId;
+            const picName = getPicNameForId(picId, options);
+            if (options.replacePicWithName && picName) {
+              newRow['PIC'] = picName;
+            } else {
+              newRow['PIC'] = value;
+            }
+          } else if (key === 'SIC') {
+            sawSic = true;
+            const sicName = getSicName(options);
+            newRow['SIC'] = sicName ? sicName : value;
+          } else if (key === 'Aircraft Registration' && options.formatAircraftReg && value) {
+            const reg = clean(value);
+            newRow[key] = reg.length >= 3 && !reg.includes('-') ? reg.substring(0, 2) + '-' + reg.substring(2) : reg;
+          } else if (key === 'Aircraft Type' && options.replaceAircraftType && value) {
+            const type = clean(value);
+            newRow[key] = type === 'E95' ? 'E190' : type;
+          } else {
+            newRow[key] = value;
+          }
+        }
+        const sicName = getSicName(options);
+        if (!sawSic && sicName) newRow['SIC'] = sicName;
+        const schedule = scheduleResultsByRow.get(row.__rowIndex);
+        newRow['Scheduled Dep'] = schedule && schedule.scheduled_dep ? schedule.scheduled_dep : '';
+        newRow['Scheduled Arr'] = schedule && schedule.scheduled_arr ? schedule.scheduled_arr : '';
+        newRow['Scheduled Time Note'] = getScheduleIssueForRow(row.__rowIndex);
+        return newRow;
+      });
+    }
+
+    function buildPicPreview(rows, options) {
+      const unique = new Map();
+      rows.forEach(row => {
+        const pic = clean(getField(row, 'PIC'));
+        if (!pic) return;
+        if (!unique.has(pic)) unique.set(pic, { id: pic, count: 0 });
+        unique.get(pic).count += 1;
+      });
+
+      return Array.from(unique.values()).map(item => {
+        if (!options.replacePicWithName) return { id: item.id, name: 'Matching disabled', status: 'skipped', count: item.count };
+        if (peopleById.has(item.id)) return { id: item.id, name: peopleById.get(item.id), status: 'matched', count: item.count };
+        if (options.useManualPicNames && manualPeopleById.has(item.id)) return { id: item.id, name: manualPeopleById.get(item.id), status: 'manual', count: item.count };
+        return { id: item.id, name: 'Not found', status: 'missing', count: item.count };
+      }).sort((a, b) => {
+        const order = { missing: 0, manual: 1, matched: 2, skipped: 3 };
+        return order[a.status] - order[b.status] || a.id.localeCompare(b.id, undefined, { numeric: true });
+      });
+    }
+
+    function renderReadyCard(options = getOptions(), missingCount = 0, matchedCount = 0, blocked = false) {
+      const card = el('readyCard');
+      const list = el('readyList');
+      if (!card || !list) return;
+      const items = [];
+      let state = 'warning';
+
+      if (!flightRows.length) {
+        items.push(['○', 'Upload a Flight CSV to begin.']);
+      } else {
+        items.push(['✓', `${flightRows.length} flights converted.`]);
+        if (options.replacePicWithName) {
+          if (!peopleById.size && manualPeopleById.size === 0) {
+            items.push(['⚠', 'PIC name matching is enabled, but no People export or manual PIC fixes are loaded.']);
+          } else if (missingCount > 0) {
+            items.push(['⚠', `${missingCount} unique PIC ID(s) still need a name.`]);
+          } else {
+            items.push(['✓', `${matchedCount} unique PIC ID(s) matched.`]);
+          }
+        } else {
+          items.push(['○', 'PIC ID to name matching is disabled.']);
+        }
+
+        const sicName = getSicName(options);
+        if (options.setSicToThisIsMe) {
+          items.push(sicName ? ['✓', `SIC will be set to ${sicName}.`] : ['⚠', 'SIC auto-fill is enabled, but no This is Me/manual SIC name is set.']);
+        } else {
+          items.push(['○', 'SIC auto-fill is disabled.']);
+        }
+
+        if (options.formatAircraftReg) items.push(['✓', 'Aircraft registrations will be formatted for LogTen.']);
+        if (options.replaceAircraftType) items.push(['✓', 'Aircraft type E95 will be converted to E190.']);
+        if (options.keepPicId) items.push(['✓', 'Original PIC numbers will be preserved in PIC ID and should be set to Do Not Import.']);
+        if (blocked) items.push(['✕', 'Download is blocked until missing PIC IDs are fixed or the blocker is switched off.']);
+
+        state = blocked ? 'error' : (missingCount > 0 || (options.setSicToThisIsMe && !sicName) || (options.replacePicWithName && !peopleById.size && manualPeopleById.size === 0) ? 'warning' : 'success');
+      }
+
+      card.className = 'ready-card ' + state;
+      list.innerHTML = items.map(([icon, text]) => `<div class="ready-item"><span class="ready-icon">${escapeHtml(icon)}</span><span>${escapeHtml(text)}</span></div>`).join('');
+    }
+
+    function updateMetrics() {
+      const matched = previewRows.filter(r => r.status === 'matched' || r.status === 'manual').length;
+      const manual = previewRows.filter(r => r.status === 'manual').length;
+      const missing = previewRows.filter(r => r.status === 'missing').length;
+      el('metricFlights').textContent = flightRows.length;
+      el('metricPeople').textContent = peopleById.size;
+      const options = getOptions();
+      const sicName = getSicName(options);
+      el('metricThisIsMe').textContent = sicName ? sicName : '-';
+      el('metricMatched').textContent = matched;
+      el('metricMissing').textContent = missing;
+      el('metricManual').textContent = manual;
+      el('metricSchedules').textContent = scheduleResultsByRow.size;
+    }
+
+    function updateProgress() {
+      const options = getOptions();
+      let pct = 0;
+      if (flightRows.length) pct += 45;
+      if (peopleById.size || manualThisIsMeName || (!options.replacePicWithName && !options.setSicToThisIsMe)) pct += 25;
+      if (processedData && processedData.length) pct += 20;
+      if (processedData && processedData.length && !el('downloadBtn').disabled) pct += 10;
+      el('progressFill').style.width = pct + '%';
+      el('progressText').textContent = pct === 100 ? 'Ready to download' : pct ? 'Processing complete with checks' : 'Waiting for files';
+      setStage('stageFlight', flightRows.length ? 'done' : 'active');
+      setStage('stagePeople', (peopleById.size || manualThisIsMeName) ? 'done' : (options.replacePicWithName || options.setSicToThisIsMe ? 'active' : 'done'));
+      setStage('stageRules', processedData ? 'done' : '');
+      setStage('stageReady', processedData && !el('downloadBtn').disabled ? 'done' : '');
+    }
+
+    function setStage(id, state) {
+      el(id).className = 'stage' + (state ? ' ' + state : '');
+    }
+
+    function renderRules(options) {
+      const rules = [];
+      rules.push('Split Flight into Flight, Departure-Place, and Destination-Place');
+      if (options.formatAircraftReg) rules.push('Format aircraft registration, e.g. SERSX to SE-RSX');
+      if (options.replaceAircraftType) rules.push('Replace E95 with E190');
+      if (options.replacePicWithName) rules.push('Replace PIC employee ID with LogTen People full name');
+      if (options.setSicToThisIsMe) {
+        const sicName = getSicName(options);
+        rules.push(sicName ? `Set SIC to ${thisIsMeName ? 'This is Me' : 'manual fallback'}: ${sicName}` : 'Set SIC to This is Me, pending valid People export or manual fallback');
+      }
+      if (options.keepPicId) rules.push('Preserve original PIC number in PIC ID');
+      if (options.useManualPicNames) rules.push('Apply manually entered PIC names for IDs missing from People export');
+      if (options.blockMissingPic) rules.push('Block CSV download when unknown PIC IDs exist');
+      if (options.enableScheduleLookup) rules.push('Add Scheduled Dep and Scheduled Arr from AirLabs via Wasmer backend');
+      el('rulesList').innerHTML = rules.map(rule => `<div class="rule"><b>✓</b><span>${escapeHtml(rule)}</span></div>`).join('');
+    }
+
+    function updateManualSicEditor(options) {
+      const editor = el('manualSicEditor');
+      const shouldShow = options.setSicToThisIsMe && !thisIsMeName;
+      editor.classList.toggle('visible', shouldShow);
+      el('manualSicName').value = manualThisIsMeName;
+    }
+
+    function applyManualSicName() {
+      manualThisIsMeName = clean(el('manualSicName').value);
+      recompute();
+    }
+
+    function clearManualSicName() {
+      manualThisIsMeName = '';
+      el('manualSicName').value = '';
+      recompute();
+    }
+
+    function renderPreviews() {
+      renderFlightPreview();
+      renderPicPreview();
+      renderSchedulePreview();
+    }
+
+    function renderFlightPreview() {
+      const wrap = el('flightPreviewWrap');
+      if (!processedData || !processedData.length) {
+        wrap.innerHTML = '<div class="empty">No converted rows yet.</div>';
+        return;
+      }
+      const rows = processedData.slice(0, 10);
+      const preferred = ['Flight', 'Departure-Place', 'Destination-Place', 'Scheduled Dep', 'Scheduled Arr', 'Scheduled Time Note', 'Aircraft Registration', 'Aircraft Type', 'PIC ID', 'PIC', 'SIC'];
+      const allKeys = Array.from(new Set(rows.flatMap(row => Object.keys(row).filter(Boolean))));
+      const keys = preferred.filter(k => allKeys.includes(k));
+      for (const k of allKeys) if (!keys.includes(k) && keys.length < 12) keys.push(k);
+      wrap.innerHTML = `<table><thead><tr>${keys.map(k => `<th>${escapeHtml(k)}</th>`).join('')}</tr></thead><tbody>${rows.map(row => `<tr>${keys.map(k => `<td>${escapeHtml(clean(row[k]))}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+    }
+
+    function renderPicPreview() {
+      const wrap = el('picPreviewWrap');
+      if (!previewRows.length) {
+        wrap.innerHTML = '<div class="empty">No PIC values to preview yet.</div>';
+        return;
+      }
+
+      const options = getOptions();
+      const missingOrManual = previewRows.filter(row => row.status === 'missing' || row.status === 'manual');
+      const actions = missingOrManual.length
+        ? `<div class="inline-actions"><button type="button" class="secondary" id="applyManualBtn">Apply manual fixes</button><button type="button" class="ghost" id="clearManualBtn">Clear manual fixes</button></div>`
+        : '';
+
+      wrap.innerHTML = `${actions}<table><thead><tr><th>PIC ID</th><th>Matched / manual name</th><th>Rows</th><th>Status</th></tr></thead><tbody>${previewRows.map(row => {
+        const badgeClass = row.status === 'matched' || row.status === 'manual' ? 'ok' : row.status === 'missing' ? 'missing' : 'skipped';
+        const nameCell = (row.status === 'missing' || row.status === 'manual')
+          ? `<input class="manual-name-input" data-pic-id="${escapeHtml(row.id)}" value="${escapeHtml(manualPeopleById.get(row.id) || '')}" placeholder="Type full name for ${escapeHtml(row.id)}" ${options.useManualPicNames ? '' : 'disabled'}>`
+          : escapeHtml(row.name);
+        return `<tr><td>${escapeHtml(row.id)}</td><td>${nameCell}</td><td>${row.count}</td><td><span class="badge ${badgeClass}">${row.status}</span></td></tr>`;
+      }).join('')}</tbody></table>`;
+
+      const applyBtn = el('applyManualBtn');
+      if (applyBtn) applyBtn.addEventListener('click', applyManualFixInputs);
+      const clearBtn = el('clearManualBtn');
+      if (clearBtn) clearBtn.addEventListener('click', () => {
+        manualPeopleById = new Map();
+        recompute();
+        setTab('pic');
+      });
+    }
+
+    function applyManualFixInputs() {
+      document.querySelectorAll('.manual-name-input').forEach(input => {
+        const id = clean(input.getAttribute('data-pic-id'));
+        const name = clean(input.value);
+        if (!id) return;
+        if (name) manualPeopleById.set(id, name);
+        else manualPeopleById.delete(id);
+      });
+      recompute();
+      setTab('pic');
+    }
+
+    function setTab(tab) {
+      activeTab = tab;
+      el('tabFlights').classList.toggle('active', tab === 'flights');
+      el('tabPic').classList.toggle('active', tab === 'pic');
+      el('tabSchedules').classList.toggle('active', tab === 'schedules');
+      el('flightPreviewWrap').style.display = tab === 'flights' ? 'block' : 'none';
+      el('picPreviewWrap').style.display = tab === 'pic' ? 'block' : 'none';
+      el('schedulePreviewWrap').style.display = tab === 'schedules' ? 'block' : 'none';
+    }
+
+
+    function normalizeFlightIata(value) {
+      const raw = clean(value).toUpperCase().replace(/\s+/g, '');
+      const match = raw.match(/^([A-Z]{2,3})0*(\d+[A-Z]?)$/);
+      return match ? match[1] + match[2] : raw;
+    }
+
+    function getEmployeeIdsFromFlightRows() {
+      const ids = new Set();
+      for (const row of flightRows) {
+        const id = clean(getField(row, 'Employee id') || getField(row, 'Employee ID')).replace(/\D+/g, '');
+        if (id) ids.add(id);
+      }
+      return Array.from(ids);
+    }
+
+    function isSasFlight(flightIata) {
+      return /^SK\d+[A-Z]?$/.test(clean(flightIata).toUpperCase());
+    }
+
+    async function refreshScheduleAccess() {
+      if (!flightRows.length) {
+        scheduleAccessAllowed = false;
+        scheduleAccessReason = 'no_flights';
+        updateScheduleLookupUI(getOptions());
+        return;
+      }
+      const employeeIds = getEmployeeIdsFromFlightRows();
+      if (!employeeIds.length) {
+        scheduleAccessAllowed = false;
+        scheduleAccessReason = 'no_employee_id';
+        updateScheduleLookupUI(getOptions());
+        return;
+      }
+      try {
+        const response = await fetch('/api/schedule-access', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ employee_ids: employeeIds })
+        });
+        const payload = await response.json();
+        scheduleAccessAllowed = !!(response.ok && payload.ok && payload.allowed);
+        scheduleAccessReason = payload.reason || (scheduleAccessAllowed ? 'enabled' : 'not_allowed');
+        if (payload.monthly_usage) {
+          el('scheduleMonthText').textContent = `Monthly usage: ${payload.monthly_usage.calls_made}/${payload.monthly_usage.monthly_limit}`;
+        }
+      } catch (error) {
+        scheduleAccessAllowed = false;
+        scheduleAccessReason = 'backend_unavailable';
+      }
+      if (!scheduleAccessAllowed) {
+        el('enableScheduleLookup').checked = false;
+        clearScheduleResults(false);
+      }
+      updateScheduleLookupUI(getOptions());
+      recompute();
+    }
+
+    function formatFlightDate(value) {
+      const raw = clean(value);
+      if (/^\d{8}$/.test(raw)) return `${raw.slice(0,4)}-${raw.slice(4,6)}-${raw.slice(6,8)}`;
+      if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+      return '';
+    }
+
+    function getFlightLookupInfo(row) {
+      const flightField = clean(getField(row, 'Flight'));
+      const parts = flightField.split('-');
+      const flight = parts.length >= 1 ? normalizeFlightIata(parts[0]) : '';
+      const date = parts.length >= 2 ? formatFlightDate(parts[1]) : formatFlightDate(getField(row, 'Departure Date') || getField(row, 'Date'));
+      const dep = parts.length >= 3 ? clean(parts[2]).toUpperCase() : clean(getField(row, 'Departure-Place') || getField(row, 'From')).toUpperCase();
+      const arr = parts.length >= 4 ? clean(parts[3]).toUpperCase() : clean(getField(row, 'Destination-Place') || getField(row, 'To')).toUpperCase();
+      const employeeId = clean(getField(row, 'Employee id') || getField(row, 'Employee ID')).replace(/\D+/g, '');
+      const actualDep = clean(getField(row, 'Block off') || getField(row, 'Out') || getField(row, 'Actual Dep'));
+      return { rowIndex: row.__rowIndex, flight_iata: flight, flight_date: date, dep_iata: dep, arr_iata: arr, employee_id: employeeId, actual_dep: actualDep };
+    }
+
+    function getScheduleGroups() {
+      const groups = new Map();
+      for (const row of flightRows) {
+        const info = getFlightLookupInfo(row);
+        if (!info.flight_iata || !info.flight_date) continue;
+        if (!isSasFlight(info.flight_iata)) continue;
+        if (!groups.has(info.flight_iata)) groups.set(info.flight_iata, []);
+        groups.get(info.flight_iata).push(info);
+      }
+      return Array.from(groups.entries()).map(([flight_iata, flights]) => ({ flight_iata, flights }));
+    }
+
+    function updateScheduleLookupUI(options) {
+      const option = el('scheduleOptionLabel');
+      const box = el('scheduleLookupBox');
+      option.classList.toggle('hidden', !scheduleAccessAllowed);
+      if (!scheduleAccessAllowed && options.enableScheduleLookup) {
+        el('enableScheduleLookup').checked = false;
+        options = getOptions();
+      }
+      box.classList.toggle('visible', scheduleAccessAllowed && options.enableScheduleLookup);
+      el('scanSchedulesBtn').disabled = !scheduleAccessAllowed || !options.enableScheduleLookup || !flightRows.length;
+      el('clearSchedulesBtn').disabled = scheduleResultsByRow.size === 0 && schedulePreviewRows.length === 0;
+      el('downloadScheduleErrorsBtn').disabled = getScheduleErrorRows().length === 0;
+      if (!scheduleAccessAllowed) {
+        el('scheduleProgressText').textContent = scheduleAccessReason === 'no_employee_id'
+          ? 'Scheduled lookup hidden: no Employee ID found in Flight CSV'
+          : 'Scheduled lookup hidden for this Employee ID';
+        return;
+      }
+      if (options.enableScheduleLookup && flightRows.length && !schedulePreviewRows.length) {
+        const groups = getScheduleGroups();
+        el('scheduleProgressText').textContent = groups.length
+          ? `Ready: ${groups.length} SAS SK flight-number group(s) to check`
+          : 'No SAS SK flight numbers found. Scheduled lookup only supports SK flights.';
+      }
+    }
+
+    function getScheduleErrorRows() {
+      return schedulePreviewRows.filter(row => !(row.status === 'found' || row.status === 'cached'));
+    }
+
+    function getScheduleIssueForRow(rowIndex) {
+      const row = schedulePreviewRows.find(item => Number(item.rowIndex) === Number(rowIndex));
+      if (!row || row.status === 'found' || row.status === 'cached') return '';
+      return row.message || (row.status === 'missing' ? 'No matching scheduled dep_time/arr_time found' : row.status || 'Schedule lookup failed');
+    }
+
+    function downloadScheduleErrorReport() {
+      const errors = getScheduleErrorRows().map(row => ({
+        Row: Number(row.rowIndex ?? 0) + 1,
+        Flight: row.flight_iata || '',
+        Date: row.flight_date || '',
+        Route: `${row.dep_iata || ''}-${row.arr_iata || ''}`,
+        Status: row.status || '',
+        Source: row.source || '',
+        Reason: row.message || (row.status === 'missing' ? 'No matching scheduled dep_time/arr_time found' : 'Schedule lookup failed')
+      }));
+      if (!errors.length) return;
+      downloadCsv(errors, `schedule_error_report_${new Date().toISOString().slice(0,10)}.csv`);
+    }
+
+    async function scanSchedules() {
+      const options = getOptions();
+      if (!scheduleAccessAllowed) {
+        showStatus('Scheduled-time lookup is not enabled for this Employee ID.', 'warning');
+        return;
+      }
+      if (!options.enableScheduleLookup) {
+        showStatus('Enable scheduled-time lookup first.', 'warning');
+        return;
+      }
+      if (!flightRows.length) {
+        showStatus('Upload a Flight CSV first.', 'warning');
+        return;
+      }
+
+      const groups = getScheduleGroups();
+      if (!groups.length) {
+        showStatus('No valid SAS SK flight/date values were found. Scheduled-time lookup only supports SK flight numbers.', 'warning');
+        return;
+      }
+
+      scheduleResultsByRow = new Map();
+      schedulePreviewRows = [];
+      el('scanSchedulesBtn').disabled = true;
+      el('scheduleProgressFill').style.width = '0%';
+      el('scheduleUsageText').textContent = 'API units this run: 0';
+      let callsThisRun = 0;
+
+      try {
+        for (let i = 0; i < groups.length; i++) {
+          const group = groups[i];
+          el('scheduleProgressText').textContent = `Checking ${group.flight_iata} (${i + 1}/${groups.length})`;
+          el('scheduleProgressFill').style.width = `${Math.round((i / groups.length) * 100)}%`;
+
+          const response = await fetch('/api/schedules', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ employee_ids: getEmployeeIdsFromFlightRows(), flights: group.flights })
+          });
+          const payload = await response.json();
+          if (!response.ok || !payload.ok) throw new Error(payload.error || `Schedule lookup failed for ${group.flight_iata}`);
+
+          callsThisRun += Number(payload.calls_made || 0);
+          const httpRequests = Number(payload.http_requests_made || 0);
+          const cost = Number(payload.historical_call_cost || 1);
+          el('scheduleUsageText').textContent = cost > 1
+            ? `API units this run: ${callsThisRun} (${httpRequests} HTTP x ${cost})`
+            : `API units this run: ${callsThisRun}`;
+          if (payload.monthly_usage) {
+            el('scheduleMonthText').textContent = `Monthly usage: ${payload.monthly_usage.calls_made}/${payload.monthly_usage.monthly_limit}`;
+          }
+
+          for (const result of payload.results || []) {
+            schedulePreviewRows.push(result);
+            if (result.status === 'found' || result.status === 'cached') {
+              scheduleResultsByRow.set(result.rowIndex, result);
+            }
+          }
+
+          processedData = processFlightData(flightRows, getOptions());
+          renderPreviews();
+          updateMetrics();
+          el('downloadScheduleErrorsBtn').disabled = getScheduleErrorRows().length === 0;
+          await new Promise(resolve => setTimeout(resolve, 80));
+        }
+
+        el('scheduleProgressFill').style.width = '100%';
+        el('scheduleProgressText').textContent = `Done: ${scheduleResultsByRow.size}/${flightRows.length} row(s) with scheduled times`;
+        el('downloadScheduleErrorsBtn').disabled = getScheduleErrorRows().length === 0;
+        showStatus(`Scheduled-time scan complete. ${scheduleResultsByRow.size}/${flightRows.length} rows matched.`, scheduleResultsByRow.size === flightRows.length ? 'success' : 'warning');
+      } catch (error) {
+        showStatus('Schedule lookup error: ' + error.message, 'error');
+      } finally {
+        updateScheduleLookupUI(getOptions());
+        recompute();
+      }
+    }
+
+    function clearScheduleResults(refresh = true) {
+      scheduleResultsByRow = new Map();
+      schedulePreviewRows = [];
+      processedData = processFlightData(flightRows, getOptions());
+      el('scheduleProgressFill').style.width = '0%';
+      el('scheduleProgressText').textContent = 'No schedule scan yet';
+      el('scheduleUsageText').textContent = 'API units this run: 0';
+      el('downloadScheduleErrorsBtn').disabled = true;
+      renderPreviews();
+      updateMetrics();
+      if (refresh) updateScheduleLookupUI(getOptions());
+    }
+
+    function renderSchedulePreview() {
+      const wrap = el('schedulePreviewWrap');
+      if (!schedulePreviewRows.length) {
+        wrap.innerHTML = '<div class="empty">No schedule scan yet.</div>';
+        return;
+      }
+      wrap.innerHTML = `<table><thead><tr><th>Row</th><th>Flight</th><th>Date</th><th>Route</th><th>Scheduled Dep</th><th>Scheduled Arr</th><th>Status</th><th>Source</th><th>Reason</th></tr></thead><tbody>${schedulePreviewRows.map(row => {
+        const badgeClass = row.status === 'found' || row.status === 'cached' ? 'ok' : row.status === 'missing' ? 'missing' : 'warning';
+        const reason = (row.status === 'found' || row.status === 'cached') ? '' : (row.message || (row.status === 'missing' ? 'No matching scheduled dep_time/arr_time found' : 'Schedule lookup failed'));
+        return `<tr><td>${escapeHtml((row.rowIndex ?? 0) + 1)}</td><td>${escapeHtml(row.flight_iata || '')}</td><td>${escapeHtml(row.flight_date || '')}</td><td>${escapeHtml((row.dep_iata || '') + '-' + (row.arr_iata || ''))}</td><td>${escapeHtml(row.scheduled_dep || '')}</td><td>${escapeHtml(row.scheduled_arr || '')}</td><td><span class="badge ${badgeClass}">${escapeHtml(row.status || '')}</span></td><td>${escapeHtml(row.source || '')}</td><td>${escapeHtml(reason)}</td></tr>`;
+      }).join('')}</tbody></table>`;
+    }
+
+    function downloadProcessedCsv() {
+      if (!processedData || !processedData.length) return;
+      downloadCsv(processedData, `airside_to_logten_${new Date().toISOString().slice(0,10)}.csv`);
+      showStatus('LogTen CSV downloaded successfully.', 'success');
+    }
+
+    function downloadUnknownPicCsv() {
+      const missing = previewRows.filter(r => r.status === 'missing').map(r => ({ 'PIC ID': r.id, 'Rows': r.count, 'Suggested action': 'Type the missing name in the PIC matching tab, add this person to LogTen People export, or correct the flight CSV PIC value' }));
+      if (!missing.length) return;
+      downloadCsv(missing, 'unknown_pic_ids.csv');
+    }
+
+    function downloadCsv(rows, filename) {
+      const csv = Papa.unparse(rows);
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.href = url;
+      link.download = filename;
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    function resetAll() {
+      flightRows = [];
+      peopleRows = [];
+      peopleById = new Map();
+      manualPeopleById = new Map();
+      duplicateIds = new Map();
+      thisIsMeName = '';
+      thisIsMeId = '';
+      manualThisIsMeName = '';
+      processedData = null;
+      previewRows = [];
+      scheduleResultsByRow = new Map();
+      schedulePreviewRows = [];
+      scheduleAccessAllowed = false;
+      scheduleAccessReason = 'not_checked';
+      el('enableScheduleLookup').checked = false;
+      el('csvFile').value = '';
+      el('peopleFile').value = '';
+      el('flightFilePill').textContent = 'No flight CSV loaded';
+      el('peopleFilePill').textContent = 'No People export loaded';
+      recompute();
+    }
+
+    function showStatus(message, type) {
+      const status = el('status');
+      status.textContent = message;
+      status.className = 'status ' + type;
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+    }
+  </script>
+</body>
+</html>
