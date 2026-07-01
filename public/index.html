@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airside ⟶ LogTen Importer v1.3.3</title>
+  <title>Airside ⟶ LogTen Importer v1.3.4</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     :root {
@@ -891,7 +891,7 @@
 
     <footer class="app-identity site-footer">
       <strong>Airside ⟶ LogTen Importer</strong>
-      <div>v1.3.3</div>
+      <div>v1.3.4</div>
       <em>Made for SAS pilots ✈️</em>
       <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
     </footer>
@@ -970,13 +970,28 @@
             </ul>
           </section>
 
+
           <section class="help-section">
-            <h3>4. Import into LogTen</h3>
+            <h3>4. Fix missing PIC IDs in LogTen</h3>
+            <p>If the importer shows missing PIC IDs, use <strong>Download unknown PIC IDs</strong> to get a small CSV with the employee numbers that were not found in your LogTen People Export.</p>
+            <ol>
+              <li>Open LogTen and go to <strong>People</strong>.</li>
+              <li>Add or edit the missing pilot.</li>
+              <li>Put the employee number into that person's <strong>ID</strong> field.</li>
+              <li>Make sure the name is written exactly how you want it imported as PIC/P1 Crew.</li>
+              <li>Export a fresh <strong>People Export</strong> from LogTen.</li>
+              <li>Upload the new People Export here and run the conversion again.</li>
+            </ol>
+            <p>You can also type a temporary manual PIC fix in the preview tab, but updating LogTen People is better because future imports will match automatically.</p>
+          </section>
+
+          <section class="help-section">
+            <h3>5. Import into LogTen</h3>
             <p>After downloading the finished CSV, use the <strong>LogTen import mapping</strong> panel on this page. It shows exactly which CSV columns to map to which LogTen fields and categories.</p>
           </section>
 
           <section class="help-section">
-            <h3>5. Privacy</h3>
+            <h3>6. Privacy</h3>
             <p>Normal conversion happens inside this browser tab. If scheduled-time lookup is enabled and your Employee ID is approved, only the Employee ID, flight number, date, and route are sent to your own Wasmer backend so it can check cache and call AirLabs without exposing the API key. The API key and allowed Employee IDs are managed on the private admin page.</p>
           </section>
         </div>
