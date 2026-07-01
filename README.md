@@ -1,8 +1,13 @@
-# Airside ⟶ LogTen Importer v1.3.2
+# Airside ⟶ LogTen Importer v1.3.3
+
+## What changed in v1.3.3
+
+Scheduled-time lookup now only adds AirLabs scheduled departure/arrival times when the scheduled time is within 60 minutes of the actual time in the uploaded CSV. If the candidate is more than 60 minutes away, the CSV can still be downloaded, but `Scheduled Dep` / `Scheduled Arr` stay empty and `Scheduled Time Note` explains why.
+
 
 This is the Airside to LogTen CSV importer with optional AirLabs scheduled-time lookup and a private admin page.
 
-## What changed in v1.3.2
+## What changed in v1.3.3
 
 - Added `/admin/debug` diagnostics page.
 - Added **Import test mode** inside `/admin` to test one SAS flight without uploading a CSV.
@@ -10,7 +15,7 @@ This is the Airside to LogTen CSV importer with optional AirLabs scheduled-time 
 - The exported LogTen CSV now includes `Scheduled Time Note`; it stays blank for successful rows and explains missing/error rows while `Scheduled Dep` and `Scheduled Arr` remain blank.
 - Added backup/restore of admin settings and optional schedule cache as JSON.
 
-## What changed in v1.3.2
+## What changed in v1.3.3
 
 - Accepts the Wasmer database variable names seen in the dashboard, including `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`/`MYSQL_NAME`, `MYSQL_USER`/`MYSQL_USERNAME`, `MYSQL_PASSWORD`, plus the `DB_*` variants Wasmer shows when database support is enabled.
 - Added a configurable **Historical request cost** in `/admin`.
@@ -19,7 +24,7 @@ This is the Airside to LogTen CSV importer with optional AirLabs scheduled-time 
 - Cache is still stored in MySQL and does not expire automatically, so it safely preserves old route/schedule matches for at least a month.
 - If a cached scheduled departure is more than 60 minutes away from the Airside actual departure / Block off time, the backend ignores that cache row and refreshes that flight from AirLabs.
 
-## What changed in v1.3.2
+## What changed in v1.3.3
 
 - Added `/admin` setup and settings page.
 - AirLabs API key is stored in MySQL through the admin page, not in the public HTML.
@@ -146,12 +151,12 @@ Matching order:
 Normal CSV conversion happens in the browser. Scheduled-time lookup sends only the minimum needed data to your own Wasmer backend: Employee ID, flight number, date, route, and actual departure/Block off time for cache-refresh checks. The backend checks the allow-list, checks the cache, and only then calls AirLabs if needed.
 
 
-## v1.3.2 fix
+## v1.3.3 fix
 
-Fixes the admin/debug page 500 error caused by a missing HTML escaping helper in v1.3.2. Database variables are still strictly `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD`.
+Fixes the admin/debug page 500 error caused by a missing HTML escaping helper in v1.3.3. Database variables are still strictly `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD`.
 
 
-## v1.3.2 database variable fix
+## v1.3.3 database variable fix
 
 Wasmer has shown different MySQL variable names in different app/database screens. This build accepts all of these aliases:
 
@@ -166,7 +171,7 @@ If diagnostics says the DB is missing, open `/admin/debug`; it will show which v
 
 ## Wasmer database variable names
 
-Wasmer may expose the built-in database using either `DB_*` or `MYSQL_*` names depending on the creation flow. v1.3.2 accepts all of these aliases:
+Wasmer may expose the built-in database using either `DB_*` or `MYSQL_*` names depending on the creation flow. v1.3.3 accepts all of these aliases:
 
 - Host: `DB_HOST` or `MYSQL_HOST`
 - Port: `DB_PORT` or `MYSQL_PORT`

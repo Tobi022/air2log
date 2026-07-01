@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airside ⟶ LogTen Importer v1.3.2</title>
+  <title>Airside ⟶ LogTen Importer v1.3.3</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     :root {
@@ -784,7 +784,7 @@
             </div>
             <div id="scheduleLookupBox" class="schedule-box">
               <h3>AirLabs scheduled-time lookup</h3>
-              <p>Optional. Only shown for approved Employee IDs. Calls your Wasmer backend, keeps the AirLabs API key private in admin settings, checks cache first, and only sends SAS SK flights. Flight numbers like SK0602 are sent as SK602.</p>
+              <p>Optional. Only shown for approved Employee IDs. Calls your Wasmer backend, keeps the AirLabs API key private in admin settings, checks cache first, and only sends SAS SK flights. Scheduled times are only added when they are within 60 minutes of the CSV actual times. Flight numbers like SK0602 are sent as SK602.</p>
               <div class="schedule-actions">
                 <button type="button" class="secondary" id="scanSchedulesBtn" disabled>Scan scheduled times</button>
                 <button type="button" class="ghost" id="clearSchedulesBtn" disabled>Clear times</button>
@@ -891,7 +891,7 @@
 
     <footer class="app-identity site-footer">
       <strong>Airside ⟶ LogTen Importer</strong>
-      <div>v1.3.2</div>
+      <div>v1.3.3</div>
       <em>Made for SAS pilots ✈️</em>
       <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
     </footer>
@@ -1636,7 +1636,8 @@
       const arr = parts.length >= 4 ? clean(parts[3]).toUpperCase() : clean(getField(row, 'Destination-Place') || getField(row, 'To')).toUpperCase();
       const employeeId = clean(getField(row, 'Employee id') || getField(row, 'Employee ID')).replace(/\D+/g, '');
       const actualDep = clean(getField(row, 'Block off') || getField(row, 'Out') || getField(row, 'Actual Dep'));
-      return { rowIndex: row.__rowIndex, flight_iata: flight, flight_date: date, dep_iata: dep, arr_iata: arr, employee_id: employeeId, actual_dep: actualDep };
+      const actualArr = clean(getField(row, 'Block on') || getField(row, 'In') || getField(row, 'Actual Arr'));
+      return { rowIndex: row.__rowIndex, flight_iata: flight, flight_date: date, dep_iata: dep, arr_iata: arr, employee_id: employeeId, actual_dep: actualDep, actual_arr: actualArr };
     }
 
     function getScheduleGroups() {

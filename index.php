@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('log_errors', '1');
 
-const APP_VERSION = 'v1.3.2';
+const APP_VERSION = 'v1.3.3';
 const AIRLABS_ENDPOINT = 'https://airlabs.co/api/v10/historical';
 
 set_exception_handler(function(Throwable $e) {
@@ -128,7 +128,21 @@ function hhmm(?string $s): string { $s=(string)$s; if (preg_match('/(\d{2}:\d{2}
 function date_part(?string $s): string { $s=(string)$s; if (preg_match('/(\d{4}-\d{2}-\d{2})/', $s, $m)) return $m[1]; return ''; }
 function minutes_of_day(string $t): ?int { if (!preg_match('/^(\d{1,2}):(\d{2})/', trim($t), $m)) return null; return ((int)$m[1])*60 + (int)$m[2]; }
 function time_diff_minutes(string $a, string $b): ?int { $ma=minutes_of_day($a); $mb=minutes_of_day($b); if ($ma===null || $mb===null) return null; $d=abs($ma-$mb); return min($d, 1440-$d); }
-function cached_row_is_stale(array $row, string $actualDep): bool { if (!$actualDep || empty($row['scheduled_dep'])) return false; $d=time_diff_minutes((string)$row['scheduled_dep'], $actualDep); return $d !== null && $d > 60; }
+function schedule_time_reject_reason(string $scheduledDep, string $scheduledArr, string $actualDep='', string $actualArr=''): string {
+    $checks = [];
+    if ($actualDep && $scheduledDep) $checks[] = ['Departure', $scheduledDep, $actualDep, time_diff_minutes($scheduledDep, $actualDep)];
+    if ($actualArr && $scheduledArr) $checks[] = ['Arrival', $scheduledArr, $actualArr, time_diff_minutes($scheduledArr, $actualArr)];
+    foreach ($checks as [$label, $scheduled, $actual, $diff]) {
+        if ($diff !== null && $diff > 60) {
+            return $label . ' scheduled time ' . $scheduled . ' is ' . $diff . ' minutes from the actual CSV time ' . $actual . '; not added because it is outside the 60-minute window.';
+        }
+    }
+    return '';
+}
+function cached_row_is_stale(array $row, array $f): bool {
+    if (empty($row['scheduled_dep']) || empty($row['scheduled_arr'])) return false;
+    return schedule_time_reject_reason((string)$row['scheduled_dep'], (string)$row['scheduled_arr'], (string)($f['actual_dep'] ?? ''), (string)($f['actual_arr'] ?? '')) !== '';
+}
 function cache_get_exact($db, array $f): ?array { $stmt=$db->prepare('SELECT * FROM schedule_cache WHERE flight_iata=? AND flight_date=? AND dep_iata=? AND arr_iata=? LIMIT 1'); $stmt->bind_param('ssss',$f['flight_iata'],$f['flight_date'],$f['dep_iata'],$f['arr_iata']); $stmt->execute(); $row=$stmt->get_result()->fetch_assoc(); return $row ?: null; }
 function cache_get_route($db, array $f): ?array { $stmt=$db->prepare("SELECT * FROM schedule_cache WHERE flight_iata=? AND dep_iata=? AND arr_iata=? AND COALESCE(scheduled_dep,'')<>'' AND COALESCE(scheduled_arr,'')<>'' ORDER BY updated_at DESC LIMIT 1"); $stmt->bind_param('sss',$f['flight_iata'],$f['dep_iata'],$f['arr_iata']); $stmt->execute(); $row=$stmt->get_result()->fetch_assoc(); return $row ?: null; }
 function cache_set($db, array $f, string $dep, string $arr, string $source, array $raw): void { $json=json_encode($raw, JSON_UNESCAPED_SLASHES|JSON_UNESCAPED_UNICODE); $stmt=$db->prepare('INSERT INTO schedule_cache (flight_iata,flight_date,dep_iata,arr_iata,scheduled_dep,scheduled_arr,source,raw_json) VALUES (?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE scheduled_dep=VALUES(scheduled_dep), scheduled_arr=VALUES(scheduled_arr), source=VALUES(source), raw_json=VALUES(raw_json), updated_at=CURRENT_TIMESTAMP'); $stmt->bind_param('ssssssss',$f['flight_iata'],$f['flight_date'],$f['dep_iata'],$f['arr_iata'],$dep,$arr,$source,$json); $stmt->execute(); }
@@ -147,7 +161,8 @@ function airlabs_fetch(string $flight, string $apiKey): array {
     elseif (isset($json['data']) && is_array($json['data'])) $rows = $json['data'];
     return ['ok'=>true,'rows'=>$rows,'raw'=>$json];
 }
-function match_airlabs_rows(array $rows, array $f): ?array {
+function match_airlabs_rows(array $rows, array $f, ?string &$rejectReason = null): ?array {
+    $rejectReason = null;
     $candidates=[];
     foreach ($rows as $r) {
         if (!is_array($r)) continue;
@@ -158,8 +173,17 @@ function match_airlabs_rows(array $rows, array $f): ?array {
         $date=date_part($r['dep_time'] ?? '') ?: date_part($r['arr_time'] ?? '');
         $candidates[]=['dep'=>$sd,'arr'=>$sa,'date'=>$date,'raw'=>$r];
     }
-    foreach ($candidates as $c) { if ($c['date'] === $f['flight_date']) { $c['source']='airlabs'; return $c; } }
-    if ($candidates) { $candidates[0]['source']='airlabs_route'; return $candidates[0]; }
+    usort($candidates, function($a, $b) use ($f) {
+        return (($b['date'] === $f['flight_date']) <=> ($a['date'] === $f['flight_date']));
+    });
+    $firstReject = null;
+    foreach ($candidates as $c) {
+        $reason = schedule_time_reject_reason($c['dep'], $c['arr'], (string)($f['actual_dep'] ?? ''), (string)($f['actual_arr'] ?? ''));
+        if ($reason) { if ($firstReject === null) $firstReject = $reason; continue; }
+        $c['source'] = ($c['date'] === $f['flight_date']) ? 'airlabs' : 'airlabs_route';
+        return $c;
+    }
+    if ($firstReject !== null) $rejectReason = $firstReject;
     return null;
 }
 
@@ -168,13 +192,13 @@ function handle_schedule_lookup(): void {
     $db=db_connect(); if (!$db) { json_response(['ok'=>false,'error'=>'database_not_connected','db_debug'=>db_connect_debug_info()],500); return; }
     $body=read_json_body(); $ids=array_map('only_digits', $body['employee_ids'] ?? []); if (!array_intersect($ids, get_allowed_ids($db))) { json_response(['ok'=>false,'error'=>'employee_id_not_allowed'],403); return; }
     $apiKey=(string)setting_value($db,'airlabs_api_key',''); if (!$apiKey) { json_response(['ok'=>false,'error'=>'airlabs_api_key_missing'],400); return; }
-    $flights=[]; foreach (($body['flights'] ?? []) as $x) { if (!is_array($x)) continue; $f=['rowIndex'=>$x['rowIndex']??null,'flight_iata'=>normalize_flight_iata((string)($x['flight_iata']??'')),'flight_date'=>(string)($x['flight_date']??''),'dep_iata'=>strtoupper((string)($x['dep_iata']??'')),'arr_iata'=>strtoupper((string)($x['arr_iata']??'')),'actual_dep'=>hhmm($x['actual_dep']??'')]; if ($f['flight_iata'] && $f['flight_date'] && $f['dep_iata'] && $f['arr_iata']) $flights[]=$f; }
+    $flights=[]; foreach (($body['flights'] ?? []) as $x) { if (!is_array($x)) continue; $f=['rowIndex'=>$x['rowIndex']??null,'flight_iata'=>normalize_flight_iata((string)($x['flight_iata']??'')),'flight_date'=>(string)($x['flight_date']??''),'dep_iata'=>strtoupper((string)($x['dep_iata']??'')),'arr_iata'=>strtoupper((string)($x['arr_iata']??'')),'actual_dep'=>hhmm($x['actual_dep']??''),'actual_arr'=>hhmm($x['actual_arr']??'')]; if ($f['flight_iata'] && $f['flight_date'] && $f['dep_iata'] && $f['arr_iata']) $flights[]=$f; }
     if (!$flights) { json_response(['ok'=>true,'results'=>[],'calls_made'=>0,'http_requests_made'=>0,'monthly_usage'=>get_month_usage($db),'historical_call_cost'=>historical_call_cost($db)]); return; }
     $results=[]; $needs=[];
     foreach ($flights as $f) {
         if (!is_sas_flight($f['flight_iata'])) { $results[] = result_for($f,'skipped','', '', '', 'Scheduled lookup only supports SAS SK flight numbers'); continue; }
-        $c=cache_get_exact($db,$f); if ($c && !cached_row_is_stale($c,$f['actual_dep']) && $c['scheduled_dep'] && $c['scheduled_arr']) { $results[]=result_for($f,'cached','cache',(string)$c['scheduled_dep'],(string)$c['scheduled_arr']); continue; }
-        $r=cache_get_route($db,$f); if ($r && !cached_row_is_stale($r,$f['actual_dep'])) { $results[]=result_for($f,'cached','cache_route',(string)$r['scheduled_dep'],(string)$r['scheduled_arr']); cache_set($db,$f,(string)$r['scheduled_dep'],(string)$r['scheduled_arr'],'cache_route',[]); continue; }
+        $c=cache_get_exact($db,$f); if ($c && !cached_row_is_stale($c,$f) && $c['scheduled_dep'] && $c['scheduled_arr']) { $results[]=result_for($f,'cached','cache',(string)$c['scheduled_dep'],(string)$c['scheduled_arr']); continue; }
+        $r=cache_get_route($db,$f); if ($r && !cached_row_is_stale($r,$f)) { $results[]=result_for($f,'cached','cache_route',(string)$r['scheduled_dep'],(string)$r['scheduled_arr']); cache_set($db,$f,(string)$r['scheduled_dep'],(string)$r['scheduled_arr'],'cache_route',[]); continue; }
         $needs[]=$f;
     }
     $calls=0; $http=0; $cost=historical_call_cost($db); $usage=get_month_usage($db); $remaining=$usage['monthly_limit'] - $usage['calls_made'];
@@ -184,9 +208,10 @@ function handle_schedule_lookup(): void {
         $resp=airlabs_fetch($flight,$apiKey); $http++; $calls += $cost; $remaining -= $cost; increment_usage($db,$cost);
         if (!$resp['ok']) { foreach ($items as $f) $results[]=result_for($f,'missing','airlabs','','',$resp['error'] ?? 'AirLabs request failed'); continue; }
         foreach ($items as $f) {
-            $m=match_airlabs_rows($resp['rows'] ?? [], $f);
+            $rejectReason = null;
+            $m=match_airlabs_rows($resp['rows'] ?? [], $f, $rejectReason);
             if ($m) { cache_set($db,$f,$m['dep'],$m['arr'],$m['source'],$m['raw']); $results[]=result_for($f,'found',$m['source'],$m['dep'],$m['arr']); }
-            else $results[]=result_for($f,'missing','airlabs','','','No matching scheduled dep_time/arr_time found for this flight number and route');
+            else $results[]=result_for($f,'missing','airlabs','','',$rejectReason ?: 'No matching scheduled dep_time/arr_time found within 60 minutes of the actual CSV time for this flight number and route');
         }
     }
     json_response(['ok'=>true,'results'=>$results,'calls_made'=>$calls,'http_requests_made'=>$http,'historical_call_cost'=>$cost,'monthly_usage'=>get_month_usage($db)]);
