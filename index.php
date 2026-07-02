@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('log_errors', '1');
 
-const APP_VERSION = 'v1.4.2';
+const APP_VERSION = 'v1.4.3';
 const AIRLABS_ENDPOINT = 'https://airlabs.co/api/v10/historical';
 
 set_exception_handler(function(Throwable $e) {
@@ -36,13 +36,36 @@ if ($path === '/api/schedules') { handle_schedule_lookup(); exit; }
 serve_static($path);
 
 function serve_static(string $path): void {
-    $file = ($path === '/' || $path === '') ? __DIR__ . '/public/index.html' : realpath(__DIR__ . '/public' . $path);
-    $root = realpath(__DIR__ . '/public');
-    if (!$file || !$root || strpos((string)$file, $root) !== 0 || !is_file((string)$file)) { http_response_code(404); echo 'Not found'; return; }
-    $ext = strtolower(pathinfo((string)$file, PATHINFO_EXTENSION));
+    $publicRoot = realpath(__DIR__ . '/public');
+    $projectRoot = realpath(__DIR__);
+    $file = null;
+
+    if ($path === '/' || $path === '') {
+        $file = __DIR__ . '/public/index.html';
+    } else {
+        $candidates = [];
+        $candidates[] = __DIR__ . '/public' . $path;
+        $candidates[] = __DIR__ . $path;
+        if (str_starts_with($path, '/public/')) {
+            $candidates[] = __DIR__ . substr($path, 7);
+        }
+        foreach ($candidates as $candidate) {
+            $real = realpath($candidate);
+            if ($real && is_file($real)) { $file = $real; break; }
+        }
+    }
+
+    $realFile = $file ? realpath((string)$file) : false;
+    $allowed = false;
+    if ($realFile && $publicRoot && strpos((string)$realFile, $publicRoot) === 0) $allowed = true;
+    if ($realFile && $projectRoot && (preg_match('#/(styles\.css|js/[^/]+\.js)$#', (string)$realFile))) $allowed = true;
+    if (!$realFile || !$allowed || !is_file((string)$realFile)) { http_response_code(404); echo 'Not found'; return; }
+
+    $ext = strtolower(pathinfo((string)$realFile, PATHINFO_EXTENSION));
     $types = ['html'=>'text/html; charset=utf-8','css'=>'text/css; charset=utf-8','js'=>'application/javascript; charset=utf-8','json'=>'application/json; charset=utf-8','svg'=>'image/svg+xml','png'=>'image/png','ico'=>'image/x-icon'];
     header('Content-Type: ' . ($types[$ext] ?? 'application/octet-stream'));
-    readfile((string)$file);
+    if ($ext === 'css' || $ext === 'js') header('Cache-Control: no-cache, must-revalidate');
+    readfile((string)$realFile);
 }
 
 function json_response(array $payload, int $status = 200): void {

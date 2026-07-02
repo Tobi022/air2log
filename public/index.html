@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Airside ⟶ LogTen Importer v1.4.3</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <link rel="stylesheet" href="styles.css?v=1.4.3">
+
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">AL</div>
+        <div>
+          <h1>Airside ⟶ LogTen Importer</h1>
+          <p>Convert Airside roster exports into a clean LogTen-ready CSV with optional People matching.</p>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button type="button" id="mappingInfoBtnTop" class="info-button" title="Show LogTen import mapping">?</button><div class="privacy-pill">Private by design: all files stay in this browser tab</div></div>
+    </header>
+
+    <section class="layout">
+      <div>
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Upload files</h2>
+              <p>Drag files onto the cards or click to browse. The People export is only needed for PIC and SIC name rules.</p>
+            </div>
+            <button type="button" id="uploadHelpBtn" class="info-button" title="How to export files and use this importer">?</button>
+          </div>
+          <div class="panel-body">
+            <div class="dropzone" id="flightDrop">
+              <div class="drop-icon">CSV</div>
+              <div>
+                <strong>Flight CSV</strong>
+                <span>Required. Expected Airside Flight format: SK5896-20240527-CPH-MMX.</span>
+                <div class="file-chip"><span id="flightFilePill">No flight CSV loaded</span></div>
+              </div>
+              <input type="file" id="csvFile" accept=".csv,text/csv" />
+            </div>
+            <div style="height:12px"></div>
+            <div class="dropzone" id="peopleDrop">
+              <div class="drop-icon">ID</div>
+              <div>
+                <strong>LogTen People export</strong>
+                <span>Optional. Used to match PIC IDs to Full Name and find This is Me for SIC.</span>
+                <div class="file-chip"><span id="peopleFilePill">No People export loaded</span></div>
+              </div>
+              <input type="file" id="peopleFile" accept=".txt,.csv,text/plain,text/csv" />
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header">
+            <div>
+              <h2>Conversion options</h2>
+              <p>Choose what the importer changes. Each row is optional and can be switched on or off.</p>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div class="rule-groups">
+              <section class="rule-group">
+                <div class="rule-group-head"><div><h3>Crew</h3><p>PIC/SIC names and missing pilot handling.</p></div><span class="group-chip">People</span></div>
+                <label class="option"><input type="checkbox" id="replacePicWithName" checked><span class="switch" aria-hidden="true"></span><span><strong>Replace PIC ID with name</strong><small>Matches PIC values to People Export ID.</small></span></label>
+                <label class="option"><input type="checkbox" id="setSicToThisIsMe" checked><span class="switch" aria-hidden="true"></span><span><strong>Set SIC to This is Me</strong><small>Uses the People row where This is Me is 1.</small></span></label>
+                <label class="option"><input type="checkbox" id="useManualPicNames" checked><span class="switch" aria-hidden="true"></span><span><strong>Use manual PIC fixes</strong><small>Lets you type names for missing PIC IDs on the preview tab.</small></span></label>
+              </section>
+
+              <section class="rule-group">
+                <div class="rule-group-head"><div><h3>Aircraft</h3><p>Small formatting fixes before import.</p></div><span class="group-chip">Aircraft</span></div>
+                <label class="option"><input type="checkbox" id="formatAircraftReg" checked><span class="switch" aria-hidden="true"></span><span><strong>Format aircraft registration</strong><small>Converts SERSX to SE-RSX.</small></span></label>
+                <label class="option"><input type="checkbox" id="replaceAircraftType" checked><span class="switch" aria-hidden="true"></span><span><strong>Replace aircraft type</strong><small>Converts E95 to E190.</small></span></label>
+              </section>
+
+              <section class="rule-group">
+                <div class="rule-group-head"><div><h3>Output & safety</h3><p>Reference columns and download blockers.</p></div><span class="group-chip">CSV</span></div>
+                <label class="option"><input type="checkbox" id="keepPicId" checked><span class="switch" aria-hidden="true"></span><span><strong>Keep PIC ID backup</strong><small>Adds a PIC ID column to preserve the number.</small></span></label>
+                <label class="option"><input type="checkbox" id="blockMissingPic"><span class="switch" aria-hidden="true"></span><span><strong>Block missing PIC IDs</strong><small>Stops download until unknown IDs are fixed.</small></span></label>
+              </section>
+
+              <section class="rule-group airlabs-group hidden" id="scheduleGroup">
+                <div class="rule-group-head"><div><h3>Scheduled times</h3><p>Available only after uploading an approved CSV. Uses cache, monthly usage tracking, SAS-only checks, and 60-minute validation.</p></div><span class="group-chip">AirLabs</span></div>
+                <label class="option" id="scheduleOptionLabel"><input type="checkbox" id="enableScheduleLookup"><span class="switch" aria-hidden="true"></span><span><strong>Add scheduled times</strong><small>Available only for approved Employee IDs and SAS SK flight numbers.</small></span></label>
+                <div id="scheduleLookupBox" class="schedule-box">
+                  <h3>Scheduled-time scan</h3>
+                  <p>Checks cache first, then AirLabs only when needed. Scheduled times are only added when they are within 60 minutes of the CSV Block off / Block on time. Flight numbers like SK0602 are sent as SK602.</p>
+                  <div class="schedule-checks">
+                    <div class="schedule-check">Private key<small>AirLabs API key stays in admin</small></div>
+                    <div class="schedule-check">SAS only<small>Only SK flights are sent</small></div>
+                    <div class="schedule-check">60-minute guard<small>Wrong schedule matches stay empty</small></div>
+                  </div>
+                  <div class="schedule-actions">
+                    <button type="button" class="secondary" id="scanSchedulesBtn" disabled>Scan scheduled times</button>
+                    <button type="button" class="ghost" id="clearSchedulesBtn" disabled>Clear times</button>
+                    <button type="button" class="ghost" id="downloadScheduleErrorsBtn" disabled>Download error report</button>
+                  </div>
+                  <div class="schedule-progress"><span id="scheduleProgressFill"></span></div>
+                  <div class="schedule-meta">
+                    <span id="scheduleProgressText">Upload a Flight CSV to check schedule access</span>
+                    <span id="scheduleUsageText">API units this run: 0</span>
+                    <span id="scheduleMonthText">Monthly usage: unknown</span>
+                  </div>
+                </div>
+              </section>
+            </div>
+            <div id="manualSicEditor" class="fallback-editor">
+              <h3>Manual SIC / This is Me fallback</h3>
+              <p>This appears only when no LogTen People row marked This is Me = 1 was detected. The typed name is used for SIC when "Set SIC to This is Me" is enabled.</p>
+              <div class="fallback-row">
+                <input type="text" id="manualSicName" class="manual-sic-input" placeholder="Type your LogTen name, e.g. Alex Mercer" autocomplete="off" />
+                <button type="button" class="secondary" id="applyManualSicBtn">Apply SIC name</button>
+                <button type="button" class="ghost" id="clearManualSicBtn">Clear</button>
+              </div>
+            </div>
+            <div id="status" class="status info">Upload a flight CSV to begin.</div>
+          </div>
+        </section>
+
+      </div>
+
+      <aside>
+        <section class="panel">
+          <div class="panel-header"><div><h2>Summary</h2><p>Live checks before you download.</p></div></div>
+          <div class="panel-body">
+            <div class="metrics">
+              <div class="metric"><div id="metricFlights" class="value">0</div><div class="label">Flights processed</div></div>
+              <div class="metric"><div id="metricPeople" class="value">0</div><div class="label">People IDs loaded</div></div>
+              <div class="metric"><div id="metricThisIsMe" class="value">-</div><div class="label">This is Me / SIC</div></div>
+              <div class="metric"><div id="metricMatched" class="value">0</div><div class="label">PIC IDs matched</div></div>
+              <div class="metric"><div id="metricMissing" class="value">0</div><div class="label">PIC IDs missing</div></div>
+              <div class="metric"><div id="metricManual" class="value">0</div><div class="label">Manual PIC fixes</div></div>
+              <div class="metric"><div id="metricSchedules" class="value">0</div><div class="label">Scheduled times</div></div>
+            </div>
+            <div id="readyCard" class="ready-card warning">
+              <h3>Ready to import into LogTen?</h3>
+              <div id="readyList" class="ready-list">
+                <div class="ready-item"><span class="ready-icon">○</span><span>Upload a Flight CSV to begin.</span></div>
+              </div>
+            </div>
+            <div class="actions">
+              <button id="downloadBtn" class="primary" disabled>Download LogTen CSV</button>
+              <button id="downloadMissingBtn" class="secondary" disabled>Download unknown PIC IDs</button>
+              <button id="resetBtn" class="ghost">Reset</button>
+            </div>
+            <details class="mapping-card" id="mappingCard">
+              <summary>
+                <h3>LogTen import mapping</h3>
+                <span>Open</span>
+              </summary>
+              <div class="mapping-card-body">
+                <p>Use these LogTen fields and categories when importing the downloaded CSV.</p>
+                <div class="mapping-list" id="mappingMiniList"></div>
+                <button type="button" id="mappingInfoBtn" class="secondary" style="width:100%; margin-top:10px; padding:10px 12px;">Full mapping guide</button>
+              </div>
+            </details>
+            <p class="fineprint">No backend, no database, no embedded names. The People export is read locally each time.</p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-header"><div><h2>Active LogTen rules</h2><p>Only enabled rules appear here.</p></div></div>
+          <div class="panel-body"><div id="rulesList" class="rules-list"><div class="empty">Upload a flight CSV to see active rules.</div></div></div>
+        </section>
+
+        <section class="panel">
+          <div class="progress-panel">
+            <div class="progress-head"><strong>Conversion progress</strong><span id="progressText">Waiting for files</span></div>
+            <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+            <div class="stage-list">
+              <div id="stageFlight" class="stage">Flight CSV</div>
+              <div id="stagePeople" class="stage">People optional</div>
+              <div id="stageRules" class="stage">Rules</div>
+              <div id="stageReady" class="stage">Ready</div>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </section>
+
+    <section class="panel" style="margin-top:20px;">
+      <div class="panel-header">
+        <div>
+          <h2>Live preview</h2>
+          <p>Review converted rows, scheduled-time notes, and manually fix missing PIC names before downloading.</p>
+        </div>
+      </div>
+      <div class="tabs">
+        <button class="tab active" id="tabFlights" type="button">Converted flights & notes</button>
+        <button class="tab" id="tabPic" type="button">PIC matching & manual fixes</button>
+        <button class="tab" id="tabSchedules" type="button">Schedule lookup & errors</button>
+      </div>
+      <div class="panel-body">
+        <div id="flightPreviewWrap" class="table-wrap"><div class="empty">No converted rows yet.</div></div>
+        <div id="picPreviewWrap" class="table-wrap" style="display:none;"><div class="empty">No PIC values yet.</div></div>
+        <div id="schedulePreviewWrap" class="table-wrap" style="display:none;"><div class="empty">No schedule scan yet.</div></div>
+      </div>
+    </section>
+
+    <footer class="app-identity site-footer">
+      <strong>Airside ⟶ LogTen Importer</strong>
+      <div>v1.4.3</div>
+      <em>Made for SAS pilots ✈️</em>
+      <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
+    </footer>
+  </main>
+
+
+  <div id="mappingModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mappingModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="mappingModalTitle">LogTen import field mapping</h2>
+          <p>After downloading the CSV, set LogTen's import fields and import categories like this. Columns marked Do Not Import are only helper/reference columns.</p>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button type="button" id="mappingModalClose" class="modal-close">Close</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="compact-table" id="mappingFullTable"></div>
+        <div class="checklist">
+          <div class="check-item"><b>✓</b><span><strong>PIC</strong> should map to <strong>PIC/P1 Crew</strong>, not the backup PIC ID column.</span></div>
+          <div class="check-item"><b>✓</b><span><strong>SIC</strong> should map to <strong>SIC/P2 Crew</strong>.</span></div>
+          <div class="check-item"><b>✓</b><span><strong>Arrival Date</strong>, <strong>PIC ID</strong>, <strong>Employee id</strong>, and <strong>Crew id</strong> should be set to <strong>Do Not Import</strong> for both field and category.</span></div>
+          <div class="check-item"><b>✓</b><span>Check the first few preview rows before importing into LogTen.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <div id="helpModal" class="modal-backdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
+      <div class="modal-head">
+        <div>
+          <h2 id="helpModalTitle">How Airside ⟶ LogTen Importer works</h2>
+          <p>Use this guide to export the correct files, convert them locally, and import the finished CSV into LogTen.</p>
+        </div>
+        <button type="button" id="helpModalClose" class="modal-close">Close</button>
+      </div>
+      <div class="modal-body">
+        <div class="help-sections">
+          <section class="help-section">
+            <h3>1. Export your Airside roster / flight log</h3>
+            <ol>
+              <li>Open <strong>Airside</strong>.</li>
+              <li>Go to <strong>Statistics</strong>.</li>
+              <li>Press <strong>Export Flight Log</strong>.</li>
+              <li>Select the date range you want to export.</li>
+              <li>Enter the email address where Airside should send the file.</li>
+              <li>Press <strong>Export</strong>.</li>
+              <li>Download the CSV attachment from the email and upload it here as <strong>Flight CSV</strong>.</li>
+            </ol>
+          </section>
+
+          <section class="help-section">
+            <h3>2. Export your LogTen People Export</h3>
+            <p>This step is optional, but recommended. It lets the importer match PIC employee IDs to LogTen names and detect your own name for SIC using <strong>This is Me</strong>.</p>
+            <ol>
+              <li>Open <strong>LogTen</strong>.</li>
+              <li>Go to <strong>People</strong>.</li>
+              <li>Export the <strong>People Export</strong> file.</li>
+              <li>Upload that TXT or CSV file here as <strong>LogTen People export</strong>.</li>
+            </ol>
+          </section>
+
+          <section class="help-section">
+            <h3>3. What the importer changes</h3>
+            <ul>
+              <li>Splits Airside flight values such as <strong>SK5896-20240527-CPH-MMX</strong> into flight number, departure, and destination.</li>
+              <li>Optionally formats aircraft registrations, for example <strong>SERSX</strong> to <strong>SE-RSX</strong>.</li>
+              <li>Optionally changes <strong>E95</strong> to <strong>E190</strong>.</li>
+              <li>Optionally replaces PIC employee IDs with matching names from the LogTen People Export.</li>
+              <li>Optionally fills SIC from the LogTen person marked <strong>This is Me</strong>, or from the manual SIC fallback field.</li>
+              <li>Shows missing PIC IDs so you can type names manually before downloading.</li>
+              <li>Optionally scans AirLabs historical data for approved Employee IDs and SAS SK flights through your Wasmer backend and adds <strong>Scheduled Dep</strong> and <strong>Scheduled Arr</strong> columns.</li>
+            </ul>
+          </section>
+
+
+          <section class="help-section">
+            <h3>4. Fix missing PIC IDs in LogTen</h3>
+            <p>If the importer shows missing PIC IDs, use <strong>Download unknown PIC IDs</strong> to get a small CSV with the employee numbers that were not found in your LogTen People Export.</p>
+            <ol>
+              <li>Open LogTen and go to <strong>People</strong>.</li>
+              <li>Add or edit the missing pilot.</li>
+              <li>Put the employee number into that person's <strong>ID</strong> field.</li>
+              <li>Make sure the name is written exactly how you want it imported as PIC/P1 Crew.</li>
+              <li>Export a fresh <strong>People Export</strong> from LogTen.</li>
+              <li>Upload the new People Export here and run the conversion again.</li>
+            </ol>
+            <p>You can also type a temporary manual PIC fix in the preview tab, but updating LogTen People is better because future imports will match automatically.</p>
+          </section>
+
+          <section class="help-section">
+            <h3>5. Import into LogTen</h3>
+            <p>After downloading the finished CSV, use the <strong>LogTen import mapping</strong> panel on this page. It shows exactly which CSV columns to map to which LogTen fields and categories.</p>
+          </section>
+
+          <section class="help-section">
+            <h3>6. Privacy</h3>
+            <p>Normal conversion happens inside this browser tab. If scheduled-time lookup is enabled and your Employee ID is approved, only the Employee ID, flight number, date, and route are sent to your own Wasmer backend so it can check cache and call AirLabs without exposing the API key. The API key and allowed Employee IDs are managed on the private admin page.</p>
+          </section>
+        </div>
+        <div class="help-callout"><strong>Tip:</strong> Check the live preview and the Ready to import card before opening LogTen's importer.</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/utils.js?v=1.4.3"></script>
+  <script src="js/ui.js?v=1.4.3"></script>
+  <script src="js/people.js?v=1.4.3"></script>
+  <script src="js/csv.js?v=1.4.3"></script>
+  <script src="js/airlabs.js?v=1.4.3"></script>
+  <script src="js/preview.js?v=1.4.3"></script>
+  <script src="js/app.js?v=1.4.3"></script>
+
+</body>
+</html>
