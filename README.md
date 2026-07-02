@@ -1,8 +1,12 @@
-# Airside ⟶ LogTen Importer v1.3.7
+# Airside ⟶ LogTen Importer v1.4.2
 
 Wasmer/PHP app for converting Airside Flight CSV exports into LogTen-ready CSV files.
 
-## v1.3.7 changes
+## v1.4.2 changes
+
+- Moved Conversion progress into the right column below Active LogTen rules.
+- Made Conversion options rows more compact while keeping full-width clickable switch rows.
+- Kept Scheduled times hidden until a Flight CSV is uploaded and the Employee ID is approved.
 
 - Removes the accidental unused `script.js` and `script2.js` files from the package.
 - Keeps the AirLabs scheduled-times card completely hidden until a Flight CSV is uploaded and the backend confirms an approved Employee ID.
@@ -17,6 +21,15 @@ Use the ZIP contents as your GitHub repository root:
 ```text
 public/
   index.html
+  styles.css
+  js/
+    app.js
+    csv.js
+    people.js
+    airlabs.js
+    preview.js
+    ui.js
+    utils.js
 index.php
 wasmer.toml
 .env.example
@@ -53,3 +66,20 @@ Open `/admin` after deployment to configure:
 ## Notes
 
 The AirLabs API key stays server-side in the Wasmer/PHP backend and is not exposed in `public/index.html`.
+
+
+## v1.4.2 code structure
+
+The frontend has been modularized for easier maintenance:
+
+- `public/index.html` - page markup only
+- `public/styles.css` - app styling
+- `public/js/app.js` - bootstrap, global state, event binding
+- `public/js/csv.js` - Flight CSV parsing, conversion, export, reset
+- `public/js/people.js` - LogTen People export, PIC/SIC matching, manual fixes
+- `public/js/airlabs.js` - AirLabs access checks, scan, usage text, schedule report
+- `public/js/preview.js` - live preview tables, PIC preview, and schedule preview rendering
+- `public/js/ui.js` - modals, mapping guide, status cards, rules panel, tabs
+- `public/js/utils.js` - shared helpers
+
+The backend remains in `index.php` for Wasmer compatibility, but the static frontend is now split into small files.
