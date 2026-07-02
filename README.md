@@ -1,8 +1,8 @@
-# Airside ⟶ LogTen Importer v1.4.4
+# Airside ⟶ LogTen Importer v1.4.5
 
 Wasmer/PHP app for converting Airside Flight CSV exports into LogTen-ready CSV files.
 
-## v1.4.4 changes
+## v1.4.5 changes
 
 - Top help button now opens a general onboarding/about guide instead of the LogTen field mapping.
 - Summary panel Full Mapping Guide still opens the detailed LogTen import field mapping.
@@ -74,7 +74,7 @@ Open `/admin` after deployment to configure:
 The AirLabs API key stays server-side in the Wasmer/PHP backend and is not exposed in `public/index.html`.
 
 
-## v1.4.4 code structure
+## v1.4.5 code structure
 
 The frontend has been modularized for easier maintenance:
 
@@ -91,7 +91,7 @@ The frontend has been modularized for easier maintenance:
 The backend remains in `index.php` for Wasmer compatibility, but the static frontend is now split into small files.
 
 
-## v1.4.4
+## v1.4.5
 
 - Adds duplicate root-level static assets plus a hardened PHP router so styles and modular JavaScript load reliably on Wasmer rebuilds.
 - Flight CSV and People export chips turn green once a file is selected.

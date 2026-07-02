@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.4 - utils.js
+// Airside LogTen Importer v1.4.5 - utils.js
 
     function clean(value) { return String(value ?? '').replace(/\r?\n/g, ' ').trim(); }
 

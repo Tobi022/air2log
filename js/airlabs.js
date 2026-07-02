@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.4 - airlabs.js
+// Airside LogTen Importer v1.4.5 - airlabs.js
 
     function normalizeFlightIata(value) {
       const raw = clean(value).toUpperCase().replace(/\s+/g, '');

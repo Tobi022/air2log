@@ -848,4 +848,44 @@
     .badge.warning { background: #fef3c7; color: var(--amber); }
     .hidden { display: none !important; }
 
+
+
+/* Subtle micro-animations -------------------------------------------------- */
+@keyframes panelEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes tableEnter {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.panel {
+  animation: panelEnter 420ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.panel:nth-of-type(2) { animation-delay: 35ms; }
+.panel:nth-of-type(3) { animation-delay: 70ms; }
+.panel:nth-of-type(4) { animation-delay: 105ms; }
+.panel:nth-of-type(5) { animation-delay: 140ms; }
+
+.table-wrap table {
+  animation: tableEnter 260ms ease-out both;
+}
+
+.dropzone.file-loaded,
+.file-chip.loaded {
+  transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease, transform 160ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
     .fineprint { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 12px; }

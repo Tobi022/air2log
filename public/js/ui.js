@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.4 - ui.js
+// Airside LogTen Importer v1.4.5 - ui.js
 
     function renderMappingGuide() {
       const miniRows = logtenImportMapping.filter(([, target]) => target !== 'Do Not Import');

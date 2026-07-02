@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.4 - preview.js
+// Airside LogTen Importer v1.4.5 - preview.js
 
     function renderPreviews() {
       renderFlightPreview();
