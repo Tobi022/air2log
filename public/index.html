@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airside ⟶ LogTen Importer v1.3.6</title>
+  <title>Airside ⟶ LogTen Importer v1.3.7</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
   <style>
     :root {
@@ -217,18 +217,20 @@
 
     .rule-groups {
       display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+      align-items: start;
     }
     @media (max-width: 760px) { .rule-groups { grid-template-columns: 1fr; } }
+    .hidden { display: none !important; }
 
     .rule-group {
       border: 1px solid var(--line);
       border-radius: 18px;
       background: rgba(255,255,255,0.68);
-      padding: 14px;
+      padding: 12px;
       display: grid;
-      gap: 10px;
+      gap: 9px;
       align-content: start;
     }
     .rule-group.airlabs-group {
@@ -267,10 +269,10 @@
 
     .option {
       display: grid;
-      grid-template-columns: 46px 1fr;
-      gap: 12px;
+      grid-template-columns: 42px 1fr;
+      gap: 10px;
       align-items: start;
-      padding: 12px;
+      padding: 10px;
       border: 1px solid rgba(229,231,235,0.95);
       border-radius: 15px;
       background: rgba(255,255,255,0.78);
@@ -881,9 +883,9 @@
                 <label class="option"><input type="checkbox" id="blockMissingPic"><span class="switch" aria-hidden="true"></span><span><strong>Block missing PIC IDs</strong><small>Stops download until unknown IDs are fixed.</small></span></label>
               </section>
 
-              <section class="rule-group airlabs-group">
-                <div class="rule-group-head"><div><h3>AirLabs scheduled times</h3><p>Private backend lookup with cache, monthly usage tracking, SAS-only checks, and 60-minute validation.</p></div><span class="group-chip">Optional</span></div>
-                <label class="option hidden" id="scheduleOptionLabel"><input type="checkbox" id="enableScheduleLookup"><span class="switch" aria-hidden="true"></span><span><strong>Add scheduled times</strong><small>Available only for approved Employee IDs and SAS SK flight numbers.</small></span></label>
+              <section class="rule-group airlabs-group hidden" id="scheduleGroup">
+                <div class="rule-group-head"><div><h3>AirLabs scheduled times</h3><p>Available for this uploaded CSV. Uses cache, monthly usage tracking, SAS-only checks, and 60-minute validation.</p></div><span class="group-chip">Optional</span></div>
+                <label class="option" id="scheduleOptionLabel"><input type="checkbox" id="enableScheduleLookup"><span class="switch" aria-hidden="true"></span><span><strong>Add scheduled times</strong><small>Available only for approved Employee IDs and SAS SK flight numbers.</small></span></label>
                 <div id="scheduleLookupBox" class="schedule-box">
                   <h3>Scheduled-time scan</h3>
                   <p>Checks cache first, then AirLabs only when needed. Scheduled times are only added when they are within 60 minutes of the CSV Block off / Block on time. Flight numbers like SK0602 are sent as SK602.</p>
@@ -1000,7 +1002,7 @@
 
     <footer class="app-identity site-footer">
       <strong>Airside ⟶ LogTen Importer</strong>
-      <div>v1.3.6</div>
+      <div>v1.3.7</div>
       <em>Made for SAS pilots ✈️</em>
       <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
     </footer>
@@ -1781,25 +1783,23 @@
     }
 
     function updateScheduleLookupUI(options) {
-      const option = el('scheduleOptionLabel');
+      const group = el('scheduleGroup');
       const box = el('scheduleLookupBox');
-      option.classList.toggle('hidden', !scheduleAccessAllowed);
       if (!scheduleAccessAllowed && options.enableScheduleLookup) {
         el('enableScheduleLookup').checked = false;
         options = getOptions();
       }
-      box.classList.toggle('visible', flightRows.length > 0 || scheduleAccessAllowed || options.enableScheduleLookup);
+
+      // Keep the AirLabs section completely hidden until a Flight CSV has been
+      // uploaded and the backend confirms that one of its Employee IDs is allowed.
+      group.classList.toggle('hidden', !scheduleAccessAllowed);
+      box.classList.toggle('visible', scheduleAccessAllowed && options.enableScheduleLookup);
+
       el('scanSchedulesBtn').disabled = !scheduleAccessAllowed || !options.enableScheduleLookup || !flightRows.length;
       el('clearSchedulesBtn').disabled = scheduleResultsByRow.size === 0 && schedulePreviewRows.length === 0;
       el('downloadScheduleErrorsBtn').disabled = getScheduleErrorRows().length === 0;
       if (!scheduleAccessAllowed) {
-        el('scheduleProgressText').textContent = !flightRows.length
-          ? 'Upload a Flight CSV to check schedule access'
-          : scheduleAccessReason === 'no_employee_id'
-            ? 'Scheduled lookup unavailable: no Employee ID found in Flight CSV'
-            : scheduleAccessReason === 'backend_unavailable'
-              ? 'Scheduled lookup unavailable: backend/admin settings could not be reached'
-              : 'Scheduled lookup unavailable for this Employee ID';
+        el('scheduleProgressText').textContent = 'Scheduled lookup hidden until an approved Employee ID is found in the Flight CSV.';
         return;
       }
       if (options.enableScheduleLookup && flightRows.length && !schedulePreviewRows.length) {
