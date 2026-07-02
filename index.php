@@ -4,7 +4,7 @@ error_reporting(E_ALL);
 ini_set('display_errors', '1');
 ini_set('log_errors', '1');
 
-const APP_VERSION = 'v1.3.4';
+const APP_VERSION = 'v1.3.6';
 const AIRLABS_ENDPOINT = 'https://airlabs.co/api/v10/historical';
 
 set_exception_handler(function(Throwable $e) {
