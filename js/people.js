@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.3 - people.js
+// Airside LogTen Importer v1.4.4 - people.js
 
     function handlePeopleFile(event) {
       const file = event.target.files[0];

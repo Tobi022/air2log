@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Airside ⟶ LogTen Importer v1.4.3</title>
+  <title>Airside ⟶ LogTen Importer v1.4.4</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-  <link rel="stylesheet" href="styles.css?v=1.4.3">
+  <link rel="stylesheet" href="styles.css?v=1.4.4">
 
 </head>
 <body>
@@ -18,7 +18,7 @@
           <p>Convert Airside roster exports into a clean LogTen-ready CSV with optional People matching.</p>
         </div>
       </div>
-      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button type="button" id="mappingInfoBtnTop" class="info-button" title="Show LogTen import mapping">?</button><div class="privacy-pill">Private by design: all files stay in this browser tab</div></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;"><button type="button" id="mappingInfoBtnTop" class="info-button" title="What this importer does">?</button><div class="privacy-pill">Private by design: all files stay in this browser tab</div></div>
     </header>
 
     <section class="layout">
@@ -26,7 +26,7 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2>Upload files</h2>
+              <h2>Step 1 • Upload files</h2>
               <p>Drag files onto the cards or click to browse. The People export is only needed for PIC and SIC name rules.</p>
             </div>
             <button type="button" id="uploadHelpBtn" class="info-button" title="How to export files and use this importer">?</button>
@@ -57,7 +57,7 @@
         <section class="panel">
           <div class="panel-header">
             <div>
-              <h2>Conversion options</h2>
+              <h2>Step 2 • Conversion options</h2>
               <p>Choose what the importer changes. Each row is optional and can be switched on or off.</p>
             </div>
           </div>
@@ -184,7 +184,7 @@
     <section class="panel" style="margin-top:20px;">
       <div class="panel-header">
         <div>
-          <h2>Live preview</h2>
+          <h2>Step 3 • Review & fix issues</h2>
           <p>Review converted rows, scheduled-time notes, and manually fix missing PIC names before downloading.</p>
         </div>
       </div>
@@ -202,7 +202,7 @@
 
     <footer class="app-identity site-footer">
       <strong>Airside ⟶ LogTen Importer</strong>
-      <div>v1.4.3</div>
+      <div>v1.4.4</div>
       <em>Made for SAS pilots ✈️</em>
       <div style="margin-top:6px;"><a href="/admin" style="color:var(--muted);text-decoration:none;font-weight:700;">Admin settings</a></div>
     </footer>
@@ -237,15 +237,34 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
       <div class="modal-head">
         <div>
-          <h2 id="helpModalTitle">How Airside ⟶ LogTen Importer works</h2>
-          <p>Use this guide to export the correct files, convert them locally, and import the finished CSV into LogTen.</p>
+          <h2 id="helpModalTitle">Welcome to Airside ⟶ LogTen Importer</h2>
+          <p>Convert your Airside roster export into a LogTen-ready CSV with optional crew matching and scheduled times.</p>
         </div>
         <button type="button" id="helpModalClose" class="modal-close">Close</button>
       </div>
       <div class="modal-body">
         <div class="help-sections">
           <section class="help-section">
-            <h3>1. Export your Airside roster / flight log</h3>
+            <h3>What this tool is made for</h3>
+            <p><strong>Airside ⟶ LogTen Importer</strong> takes the Flight Log CSV from Airside and prepares it for LogTen import. It keeps the workflow private and reduces the manual cleanup normally needed before importing flights.</p>
+            <ul>
+              <li>Splits Airside flight strings into flight number, departure airport, and destination airport.</li>
+              <li>Formats aircraft registrations, for example <strong>SERSX</strong> to <strong>SE-RSX</strong>.</li>
+              <li>Converts aircraft type <strong>E95</strong> to <strong>E190</strong>.</li>
+              <li>Matches PIC employee IDs to pilot names from your LogTen <strong>People Export</strong>.</li>
+              <li>Fills SIC from the person marked <strong>This is Me</strong>, or from your manual fallback.</li>
+              <li>Optionally adds <strong>Scheduled Dep</strong> and <strong>Scheduled Arr</strong> from AirLabs through your private Wasmer backend.</li>
+            </ul>
+          </section>
+
+          <section class="help-section">
+            <h3>Privacy</h3>
+            <p>Normal CSV conversion happens locally in this browser tab. Your Flight CSV and LogTen People Export are not uploaded anywhere.</p>
+            <p>Only when <strong>Scheduled times</strong> is enabled does the app send limited flight lookup data to your own private Wasmer backend: flight number, flight date, departure airport, arrival airport, and the Employee ID needed for access control. The AirLabs API key stays in the admin page/database and is never exposed in the public HTML.</p>
+          </section>
+
+          <section class="help-section">
+            <h3>Step 1 — Export from Airside</h3>
             <ol>
               <li>Open <strong>Airside</strong>.</li>
               <li>Go to <strong>Statistics</strong>.</li>
@@ -258,8 +277,8 @@
           </section>
 
           <section class="help-section">
-            <h3>2. Export your LogTen People Export</h3>
-            <p>This step is optional, but recommended. It lets the importer match PIC employee IDs to LogTen names and detect your own name for SIC using <strong>This is Me</strong>.</p>
+            <h3>Step 2 — Export LogTen People Export</h3>
+            <p>This is optional, but recommended. It enables automatic PIC name matching and SIC auto-fill.</p>
             <ol>
               <li>Open <strong>LogTen</strong>.</li>
               <li>Go to <strong>People</strong>.</li>
@@ -269,26 +288,22 @@
           </section>
 
           <section class="help-section">
-            <h3>3. What the importer changes</h3>
+            <h3>Step 3 — Review before download</h3>
             <ul>
-              <li>Splits Airside flight values such as <strong>SK5896-20240527-CPH-MMX</strong> into flight number, departure, and destination.</li>
-              <li>Optionally formats aircraft registrations, for example <strong>SERSX</strong> to <strong>SE-RSX</strong>.</li>
-              <li>Optionally changes <strong>E95</strong> to <strong>E190</strong>.</li>
-              <li>Optionally replaces PIC employee IDs with matching names from the LogTen People Export.</li>
-              <li>Optionally fills SIC from the LogTen person marked <strong>This is Me</strong>, or from the manual SIC fallback field.</li>
-              <li>Shows missing PIC IDs so you can type names manually before downloading.</li>
-              <li>Optionally scans AirLabs historical data for approved Employee IDs and SAS SK flights through your Wasmer backend and adds <strong>Scheduled Dep</strong> and <strong>Scheduled Arr</strong> columns.</li>
+              <li>Check the <strong>Ready to import</strong> card in the Summary panel.</li>
+              <li>Review missing PIC IDs and type temporary manual fixes if needed.</li>
+              <li>Review scheduled-time results and the <strong>Scheduled Time Note</strong> column.</li>
+              <li>Use the live preview to confirm the first converted rows look right.</li>
             </ul>
           </section>
 
-
           <section class="help-section">
-            <h3>4. Fix missing PIC IDs in LogTen</h3>
-            <p>If the importer shows missing PIC IDs, use <strong>Download unknown PIC IDs</strong> to get a small CSV with the employee numbers that were not found in your LogTen People Export.</p>
+            <h3>Fix missing PIC IDs in LogTen</h3>
+            <p>If the importer finds unknown PIC IDs, press <strong>Download unknown PIC IDs</strong>. This creates a small CSV with the employee numbers that were not found in your LogTen People Export.</p>
             <ol>
               <li>Open LogTen and go to <strong>People</strong>.</li>
-              <li>Add or edit the missing pilot.</li>
-              <li>Put the employee number into that person's <strong>ID</strong> field.</li>
+              <li>Add or edit each missing pilot.</li>
+              <li>Put the employee number into that person’s <strong>ID</strong> field.</li>
               <li>Make sure the name is written exactly how you want it imported as PIC/P1 Crew.</li>
               <li>Export a fresh <strong>People Export</strong> from LogTen.</li>
               <li>Upload the new People Export here and run the conversion again.</li>
@@ -297,27 +312,29 @@
           </section>
 
           <section class="help-section">
-            <h3>5. Import into LogTen</h3>
-            <p>After downloading the finished CSV, use the <strong>LogTen import mapping</strong> panel on this page. It shows exactly which CSV columns to map to which LogTen fields and categories.</p>
+            <h3>Scheduled times</h3>
+            <p>Scheduled-time lookup is only shown when the uploaded Flight CSV contains an approved Employee ID. It only checks SAS <strong>SK</strong> flight numbers and converts values such as <strong>SK0602</strong> to <strong>SK602</strong> before lookup.</p>
+            <p>Scheduled times are only accepted when they are within <strong>60 minutes</strong> of the actual CSV block times. If a match is too far away, the scheduled-time columns stay empty and the reason is written into <strong>Scheduled Time Note</strong>.</p>
           </section>
 
           <section class="help-section">
-            <h3>6. Privacy</h3>
-            <p>Normal conversion happens inside this browser tab. If scheduled-time lookup is enabled and your Employee ID is approved, only the Employee ID, flight number, date, and route are sent to your own Wasmer backend so it can check cache and call AirLabs without exposing the API key. The API key and allowed Employee IDs are managed on the private admin page.</p>
+            <h3>Step 4 — Import into LogTen</h3>
+            <p>Download the converted CSV and import it into LogTen. Use the <strong>LogTen import mapping</strong> panel in the Summary area for the exact fields and categories.</p>
+            <p>The top help button shows this overview. The <strong>Full mapping guide</strong> button in the Summary panel still opens the detailed LogTen field mapping.</p>
           </section>
         </div>
-        <div class="help-callout"><strong>Tip:</strong> Check the live preview and the Ready to import card before opening LogTen's importer.</div>
+        <div class="help-callout"><strong>Made for SAS pilots ✈️</strong> Check the live preview and Ready to import card before opening LogTen's importer.</div>
       </div>
     </div>
   </div>
 
-  <script src="js/utils.js?v=1.4.3"></script>
-  <script src="js/ui.js?v=1.4.3"></script>
-  <script src="js/people.js?v=1.4.3"></script>
-  <script src="js/csv.js?v=1.4.3"></script>
-  <script src="js/airlabs.js?v=1.4.3"></script>
-  <script src="js/preview.js?v=1.4.3"></script>
-  <script src="js/app.js?v=1.4.3"></script>
+  <script src="js/utils.js?v=1.4.4"></script>
+  <script src="js/ui.js?v=1.4.4"></script>
+  <script src="js/people.js?v=1.4.4"></script>
+  <script src="js/csv.js?v=1.4.4"></script>
+  <script src="js/airlabs.js?v=1.4.4"></script>
+  <script src="js/preview.js?v=1.4.4"></script>
+  <script src="js/app.js?v=1.4.4"></script>
 
 </body>
 </html>

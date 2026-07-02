@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.3 - app bootstrap and global state
+// Airside LogTen Importer v1.4.4 - app bootstrap and global state
 
 
     let flightRows = [];
@@ -60,7 +60,7 @@
     el('clearSchedulesBtn').addEventListener('click', clearScheduleResults);
     el('downloadScheduleErrorsBtn').addEventListener('click', downloadScheduleErrorReport);
     el('mappingInfoBtn').addEventListener('click', openMappingModal);
-    el('mappingInfoBtnTop').addEventListener('click', openMappingModal);
+    el('mappingInfoBtnTop').addEventListener('click', openHelpModal);
     el('uploadHelpBtn').addEventListener('click', openHelpModal);
     el('mappingModalClose').addEventListener('click', closeMappingModal);
     el('helpModalClose').addEventListener('click', closeHelpModal);

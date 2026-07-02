@@ -1,4 +1,4 @@
-// Airside LogTen Importer v1.4.3 - csv.js
+// Airside LogTen Importer v1.4.4 - csv.js
 
     function handleFlightFile(event) {
       const file = event.target.files[0];
